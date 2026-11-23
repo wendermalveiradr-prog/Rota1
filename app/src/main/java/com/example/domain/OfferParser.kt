@@ -401,7 +401,7 @@ object OfferParser {
                         BlockSection.HEADER -> {
                         val rawStoreMatch = Regex("^(.+?)\s*-\s*\(\s*\d+(?:[.,]\d+)?\s*(?:km|m)\s*\)$", RegexOption.IGNORE_CASE).find(rawLine.trim())
                         if (rawStoreMatch != null) {
-                            val cleanStore = rawStoreMatch.groupValues.trim()
+                            val cleanStore = rawStoreMatch.groupValues[1].trim()
                             if (cleanStore.isNotBlank() && !cleanStore.lowercase().contains("carteira") && !cleanStore.lowercase().contains("faturado")) {
                                 detectedStoreName = cleanStore
                                 currentSection = BlockSection.PICKUP
