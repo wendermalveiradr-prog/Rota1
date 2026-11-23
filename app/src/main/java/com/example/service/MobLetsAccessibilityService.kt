@@ -211,9 +211,21 @@ class MobLetsAccessibilityService : AccessibilityService() {
     }
 
     private fun isMobLetsPackageName(pkg: String): Boolean {
+        val rootText = try {
+            val root = rootInActiveWindow
+            val text = collectNodeText(root)
+            try { root?.recycle() } catch (_: Exception) {}
+            text
+        } catch (_: Exception) {
+            ""
+        }
         return pkg.contains("moblets", ignoreCase = true) ||
             pkg.contains("mob.lets", ignoreCase = true) ||
-            pkg.contains("mob_lets", ignoreCase = true)
+            pkg.contains("mob_lets", ignoreCase = true) ||
+            pkg.contains("delivery", ignoreCase = true) ||
+            rootText.contains("mob", ignoreCase = true) ||
+            rootText.contains("corrida", ignoreCase = true) ||
+            rootText.contains("entrega", ignoreCase = true)
     }
 
     private fun triggerOcrFallbackScan(detectedPackage: String, requireKeywords: Boolean) {
@@ -427,7 +439,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
     }
 
     companion object {
-        private const val EVENT_SCAN_INTERVAL_MS = 250L
+        private const val EVENT_SCAN_INTERVAL_MS = 80L
         private const val OCR_SCAN_INTERVAL_MS = 3500L
         private const val OFFER_LEAVE_CONFIRMATION_MS = 2500L
     }
