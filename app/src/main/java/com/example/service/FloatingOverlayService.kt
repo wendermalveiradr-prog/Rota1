@@ -544,7 +544,7 @@ class FloatingOverlayService : Service() {
             offerSummaryView.text = runtime.lastAnalysisError
             routeBreakdownView.text = "Nenhum km estimado artificialmente"
             alertBannerView.visibility = View.VISIBLE
-            alertBannerView.text = "⚠ Endereço fora do catálogo/Geocoder de Montes Claros"
+            alertBannerView.text = ""
             return
         }
 
