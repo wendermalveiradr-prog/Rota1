@@ -145,7 +145,36 @@ object MontesClarosGeoCatalog {
         KnownNeighborhood("João Gordo", -16.7042, -43.8495, NeighborhoodStatus.AVOIDED, "Região norte de atenção redobrada"),
         KnownNeighborhood("Independência", -16.7370, -43.8295, NeighborhoodStatus.AVOIDED, "Muito afastado do Centro (retorno longo)"),
         KnownNeighborhood("Planalto", -16.7104, -43.8330, NeighborhoodStatus.AVOIDED, "Região leste afastada"),
-        KnownNeighborhood("Jardim Primavera", -16.7590, -43.8462, NeighborhoodStatus.AVOIDED, "Extremo sudeste com retorno longo")
+        KnownNeighborhood("Jardim Primavera", -16.7590, -43.8462, NeighborhoodStatus.AVOIDED, "Extremo sudeste com retorno longo"),
+        KnownNeighborhood("João Alves", -16.7150, -43.8650, NeighborhoodStatus.NEUTRAL, "Região norte"),
+        KnownNeighborhood("São Norberto", -16.7190, -43.8590, NeighborhoodStatus.NEUTRAL, "Região nordeste"),
+        KnownNeighborhood("Jardim Palmeiras", -16.7420, -43.8810, NeighborhoodStatus.NEUTRAL, "Região sul"),
+        KnownNeighborhood("Vila Ipiranga", -16.7350, -43.8510, NeighborhoodStatus.NEUTRAL, "Região leste"),
+        KnownNeighborhood("Vila Luiza", -16.7280, -43.8570, NeighborhoodStatus.NEUTRAL, "Região centro-leste"),
+        KnownNeighborhood("Morada da Serra", -16.7510, -43.8750, NeighborhoodStatus.NEUTRAL, "Região sul"),
+        KnownNeighborhood("Cidade Santa Maria", -16.6950, -43.8520, NeighborhoodStatus.NEUTRAL, "Região norte"),
+        KnownNeighborhood("Antônio Pimenta", -16.7230, -43.8550, NeighborhoodStatus.NEUTRAL, "Região centro-leste"),
+        KnownNeighborhood("Canelas II", -16.7550, -43.8650, NeighborhoodStatus.NEUTRAL, "Região sul"),
+        KnownNeighborhood("Village do Lago II", -16.6890, -43.8420, NeighborhoodStatus.AVOIDED, "Região norte"),
+        KnownNeighborhood("Village do Lago III", -16.6870, -43.8430, NeighborhoodStatus.AVOIDED, "Região norte"),
+        KnownNeighborhood("Parque Cecap", -16.7110, -43.8510, NeighborhoodStatus.NEUTRAL, "Região norte"),
+        KnownNeighborhood("Chiquinho Guimarães", -16.7140, -43.8540, NeighborhoodStatus.NEUTRAL, "Região norte"),
+        KnownNeighborhood("Vila Telma", -16.7180, -43.8480, NeighborhoodStatus.NEUTRAL, "Região leste"),
+        KnownNeighborhood("Vila Regina", -16.7210, -43.8490, NeighborhoodStatus.NEUTRAL, "Região leste"),
+        KnownNeighborhood("Vila Anália", -16.7240, -43.8480, NeighborhoodStatus.NEUTRAL, "Região leste"),
+        KnownNeighborhood("Vila Sumaré", -16.7260, -43.8470, NeighborhoodStatus.NEUTRAL, "Região leste"),
+        KnownNeighborhood("Jardim Liberdade", -16.7450, -43.8520, NeighborhoodStatus.NEUTRAL, "Região sudeste"),
+        KnownNeighborhood("Jardim Olímpico", -16.7480, -43.8550, NeighborhoodStatus.NEUTRAL, "Região sudeste"),
+        KnownNeighborhood("Conjunto Joaquim Costa", -16.7150, -43.8580, NeighborhoodStatus.NEUTRAL, "Região norte"),
+        KnownNeighborhood("Vila Tupã", -16.7120, -43.8620, NeighborhoodStatus.NEUTRAL, "Região norte"),
+        KnownNeighborhood("Interlagos", -16.7520, -43.8580, NeighborhoodStatus.NEUTRAL, "Região sudeste"),
+        KnownNeighborhood("Bela Paisagem", -16.7550, -43.8510, NeighborhoodStatus.NEUTRAL, "Região sudeste"),
+        KnownNeighborhood("Santa Cecília", -16.7290, -43.8450, NeighborhoodStatus.NEUTRAL, "Região leste"),
+        KnownNeighborhood("Vila Castelo Branco", -16.7320, -43.8430, NeighborhoodStatus.NEUTRAL, "Região leste"),
+        KnownNeighborhood("Vila Greice", -16.7350, -43.8420, NeighborhoodStatus.NEUTRAL, "Região leste"),
+        KnownNeighborhood("Amazonas", -16.7200, -43.8720, NeighborhoodStatus.NEUTRAL, "Região oeste"),
+        KnownNeighborhood("Guarujá", -16.7230, -43.8750, NeighborhoodStatus.NEUTRAL, "Região oeste"),
+        KnownNeighborhood("Conjunto José Carlos de Lima", -16.7080, -43.8550, NeighborhoodStatus.NEUTRAL, "Região norte")
     )
 
     private val neighborhoodAliases: Map<String, String> = mapOf(
@@ -176,15 +205,22 @@ object MontesClarosGeoCatalog {
         "conjunto clarice athayde" to "Clarice Athayde",
         "village lago" to "Village do Lago",
         "village do lago i" to "Village do Lago",
-        "village do lago ii" to "Village do Lago",
+        "village do lago ii" to "Village do Lago II",
+        "village do lago iii" to "Village do Lago III",
         "village do lago 1" to "Village do Lago",
-        "village do lago 2" to "Village do Lago",
+        "village do lago 2" to "Village do Lago II",
+        "village do lago 3" to "Village do Lago III",
         "delfino" to "Delfino Magalhães",
         "sao judas" to "São Judas Tadeu",
         "vila joao gordo" to "João Gordo",
         "alto s joao" to "Alto São João",
         "carmelo" to "Monte Carmelo",
-        "distrito industrial" to "Cidade Industrial"
+        "distrito industrial" to "Cidade Industrial",
+        "sao norberto" to "São Norberto",
+        "antonio pimenta" to "Antônio Pimenta",
+        "canelas i" to "Canelas",
+        "canelas ii" to "Canelas II",
+        "cecap" to "Parque Cecap"
     )
 
     private val landmarkHints: Map<String, String> = mapOf(
@@ -261,6 +297,30 @@ object MontesClarosGeoCatalog {
         return normalize(cleaned.ifBlank { address })
     }
 
+    fun extractMobLetsDirectNeighborhood(address: String): String? {
+        if (address.isBlank()) return null
+        val singleLine = address.replace("\n", " ").replace(Regex("\\s+"), " ").trim()
+        if (!singleLine.contains('-')) return null
+
+        val afterLastDash = singleLine.substringAfterLast('-')
+            .replace(cepRegex, " ")
+            .replace(cityNoiseRegex, " ")
+            .trim(' ', ',', '-', '.', ';')
+            .replace(Regex("\\s+"), " ")
+
+        if (afterLastDash.length in 3..40 &&
+            !afterLastDash.all { it.isDigit() } &&
+            !isCityOrNoiseOnly(normalize(afterLastDash)) &&
+            !streetPrefixRegex.matches(normalize(afterLastDash))
+        ) {
+            return afterLastDash.split(" ").joinToString(" ") { word ->
+                if (word.length <= 2 && word.lowercase() !in setOf("do", "da", "dos", "das", "e")) word.lowercase()
+                else word.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale("pt", "BR")) else it.toString() }
+            }
+        }
+        return null
+    }
+
     fun identifyNeighborhood(
         address: String,
         point: GeoPoint?,
@@ -269,6 +329,23 @@ object MontesClarosGeoCatalog {
         val sortedRules = rules
             .filter { it.normalizedKey.isNotBlank() }
             .sortedByDescending { it.normalizedKey.length }
+
+        // 0. Priority direct Mob Lets pattern rule (text after last '-')
+        if (address.isNotBlank()) {
+            extractMobLetsDirectNeighborhood(address)?.let { directNb ->
+                val normDirect = normalize(directNb)
+                val matchedRule = rules.firstOrNull { it.normalizedKey == normDirect || containsWordBoundary(normDirect, it.normalizedKey) }
+                    ?: knownNeighborhoods.firstOrNull { normalize(it.name) == normDirect }?.let { cat ->
+                        findRuleByCanonicalName(cat.name, rules)
+                    }
+                return NeighborhoodMatchResult(
+                    name = matchedRule?.name ?: directNb,
+                    confidence = NeighborhoodConfidence.HIGH,
+                    rule = matchedRule,
+                    sourceDetail = "Padrão Mob Lets (- Bairro)"
+                )
+            }
+        }
 
         // 1. Explicit normalized segments after " - " or explicit neighborhood markers (HIGH confidence)
         if (address.isNotBlank()) {

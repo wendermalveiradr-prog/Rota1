@@ -70,10 +70,19 @@ interface OsrmRoutingApi {
 }
 
 @JsonClass(generateAdapter = true)
+data class NominatimAddress(
+    val suburb: String?,
+    val neighbourhood: String?,
+    val city: String?,
+    val town: String?
+)
+
+@JsonClass(generateAdapter = true)
 data class NominatimResult(
     val lat: String?,
     val lon: String?,
-    val display_name: String?
+    val display_name: String?,
+    val address: NominatimAddress?
 )
 
 interface NominatimApi {
@@ -81,6 +90,7 @@ interface NominatimApi {
     suspend fun searchAddress(
         @Query("q") query: String,
         @Query("format") format: String = "json",
+        @Query("addressdetails") addressDetails: Int = 1,
         @Query("viewbox") viewbox: String = "-44.00,-16.60,-43.75,-16.86",
         @Query("bounded") bounded: Int = 1,
         @Query("limit") limit: Int = 1,
@@ -745,10 +755,17 @@ class RouteCalculator(
                     if (!MontesClarosGeoCatalog.isWithinMontesClarosBounds(lat, lon)) {
                         return@withTimeoutOrNull null
                     }
+                    val suburb = first.address?.suburb?.trim()?.takeIf { it.isNotBlank() }
+                        ?: first.address?.neighbourhood?.trim()?.takeIf { it.isNotBlank() }
+                    val metadata = GeocoderPlaceMetadata(
+                        subLocality = suburb,
+                        addressLine = first.display_name
+                    )
                     GeoPoint(
                         latitude = lat,
                         longitude = lon,
-                        label = first.display_name ?: rawAddress
+                        label = suburb ?: first.display_name ?: rawAddress,
+                        geocoderMetadata = metadata
                     )
                 }
             }
