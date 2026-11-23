@@ -69,6 +69,25 @@ interface OsrmRoutingApi {
     ): OsrmRouteResponse
 }
 
+@JsonClass(generateAdapter = true)
+data class NominatimResult(
+    val lat: String?,
+    val lon: String?,
+    val display_name: String?
+)
+
+interface NominatimApi {
+    @GET("search")
+    suspend fun searchAddress(
+        @Query("q") query: String,
+        @Query("format") format: String = "json",
+        @Query("viewbox") viewbox: String = "-44.00,-16.60,-43.75,-16.86",
+        @Query("bounded") bounded: Int = 1,
+        @Query("limit") limit: Int = 1,
+        @retrofit2.http.Header("User-Agent") userAgent: String = "RotaInteligenteIA-Android"
+    ): List<NominatimResult>
+}
+
 data class RouteCalculationResult(
     val leg1CurrentToPickupKm: Double,
     val leg2PickupToCustomerKm: Double,
@@ -95,6 +114,7 @@ class RouteCalculator(
     private val context: Context,
     private val cacheStore: GeoCacheStore = InMemoryGeoCacheStore(),
     private val osrmApi: OsrmRoutingApi = createDefaultOsrmApi(),
+    private val nominatimApi: NominatimApi = createDefaultNominatimApi(),
     private val geocoderOverride: (suspend (String) -> GeoPoint?)? = null
 ) {
 
@@ -579,7 +599,7 @@ class RouteCalculator(
             val resolvedLabel = when {
                 !MontesClarosGeoCatalog.isUnidentified(neighborhoodMatch.name) -> neighborhoodMatch.name
                 catalogPoint != null -> catalogPoint.label
-                else -> MontesClarosGeoCatalog.UNIDENTIFIED_NEIGHBORHOOD
+                else -> neighborhoodMatch.name
             }
 
             cacheStore.putAddress(
@@ -595,6 +615,29 @@ class RouteCalculator(
                 )
             )
             return geocoded
+        }
+
+        // Fallback to Nominatim API (OpenStreetMap) restricted to Montes Claros
+        val nominatimPoint = fetchNominatimPoint(rawAddress)
+        if (nominatimPoint != null && MontesClarosGeoCatalog.isWithinMontesClarosBounds(nominatimPoint.latitude, nominatimPoint.longitude)) {
+            val neighborhoodMatch = MontesClarosGeoCatalog.identifyNeighborhood(
+                address = rawAddress,
+                point = nominatimPoint,
+                rules = emptyList()
+            )
+            cacheStore.putAddress(
+                CachedAddressEntity(
+                    normalizedQuery = cacheKey,
+                    originalQuery = rawAddress,
+                    latitude = nominatimPoint.latitude,
+                    longitude = nominatimPoint.longitude,
+                    resolvedNeighborhood = neighborhoodMatch.name,
+                    resolutionSource = ADDRESS_SOURCE_NOMINATIM,
+                    createdAt = now,
+                    expiresAt = now + GEOCODER_ADDRESS_TTL_MS
+                )
+            )
+            return nominatimPoint
         }
 
         if (catalogPoint != null) {
@@ -686,6 +729,34 @@ class RouteCalculator(
         }
     }
 
+    private suspend fun fetchNominatimPoint(rawAddress: String): GeoPoint? {
+        return try {
+            withContext(Dispatchers.IO) {
+                withTimeoutOrNull(2500L) {
+                    val query = if (rawAddress.contains("montes claros", ignoreCase = true)) {
+                        rawAddress
+                    } else {
+                        "$rawAddress, Montes Claros, MG, Brazil"
+                    }
+                    val results = nominatimApi.searchAddress(query = query)
+                    val first = results.firstOrNull() ?: return@withTimeoutOrNull null
+                    val lat = first.lat?.toDoubleOrNull() ?: return@withTimeoutOrNull null
+                    val lon = first.lon?.toDoubleOrNull() ?: return@withTimeoutOrNull null
+                    if (!MontesClarosGeoCatalog.isWithinMontesClarosBounds(lat, lon)) {
+                        return@withTimeoutOrNull null
+                    }
+                    GeoPoint(
+                        latitude = lat,
+                        longitude = lon,
+                        label = first.display_name ?: rawAddress
+                    )
+                }
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     private fun Address.toValidatedGeoPoint(rawAddress: String): GeoPoint? {
         if (!MontesClarosGeoCatalog.isWithinMontesClarosBounds(latitude, longitude)) {
             return null
@@ -744,6 +815,7 @@ class RouteCalculator(
         const val ROUTE_SOURCE_INSTANT_OFFLINE = "INSTANT_OFFLINE_SCREEN"
         const val ADDRESS_SOURCE_GEOCODER = "GEOCODER"
         const val ADDRESS_SOURCE_CATALOG = "CATALOG"
+        const val ADDRESS_SOURCE_NOMINATIM = "NOMINATIM"
 
         private const val GEOCODER_TIMEOUT_MS = 1800L
         private const val OSRM_REQUEST_TIMEOUT_MS = 3000L
@@ -774,6 +846,27 @@ class RouteCalculator(
                 .addConverterFactory(MoshiConverterFactory.create(moshi))
                 .build()
                 .create(OsrmRoutingApi::class.java)
+        }
+
+        fun createDefaultNominatimApi(): NominatimApi {
+            val moshi = Moshi.Builder()
+                .addLast(KotlinJsonAdapterFactory())
+                .build()
+
+            val okHttpClient = OkHttpClient.Builder()
+                .connectTimeout(2500, TimeUnit.MILLISECONDS)
+                .readTimeout(2500, TimeUnit.MILLISECONDS)
+                .callTimeout(3500, TimeUnit.MILLISECONDS)
+                .connectionPool(ConnectionPool(4, 3, TimeUnit.MINUTES))
+                .retryOnConnectionFailure(true)
+                .build()
+
+            return Retrofit.Builder()
+                .baseUrl("https://nominatim.openstreetmap.org/")
+                .client(okHttpClient)
+                .addConverterFactory(MoshiConverterFactory.create(moshi))
+                .build()
+                .create(NominatimApi::class.java)
         }
     }
 }

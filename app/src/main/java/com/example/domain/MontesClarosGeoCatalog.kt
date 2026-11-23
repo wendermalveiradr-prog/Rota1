@@ -409,13 +409,13 @@ object MontesClarosGeoCatalog {
             }
         }
 
-        // 6. Confirmed coordinates inside Montes Claros bounds (MEDIUM <= 1.2 km, LOW <= 2.5 km)
+        // 6. Confirmed coordinates inside Montes Claros bounds (MEDIUM <= 1.5 km, LOW <= 4.0 km)
         if (point != null && isWithinMontesClarosBounds(point.latitude, point.longitude)) {
-            val nearest = findNearestCatalogNeighborhood(point.latitude, point.longitude, maxDistanceKm = 2.5)
+            val nearest = findNearestCatalogNeighborhood(point.latitude, point.longitude, maxDistanceKm = 4.0)
             if (nearest != null) {
                 val (catalogItem, distanceKm) = nearest
                 val matchedRule = findRuleByCanonicalName(catalogItem.name, rules)
-                val confidence = if (distanceKm <= 1.2) {
+                val confidence = if (distanceKm <= 1.5) {
                     NeighborhoodConfidence.MEDIUM
                 } else {
                     NeighborhoodConfidence.LOW
@@ -424,21 +424,29 @@ object MontesClarosGeoCatalog {
                     name = matchedRule?.name ?: catalogItem.name,
                     confidence = confidence,
                     rule = matchedRule,
-                    sourceDetail = if (confidence == NeighborhoodConfidence.MEDIUM) {
-                        "Coordenada próxima"
-                    } else {
-                        "Coordenada aproximada"
-                    }
+                    sourceDetail = "Coordenada próxima (4km)"
                 )
             }
         }
 
-        // 7. Never invent neighborhoods — explicitly mark as unidentified
+        // 7. Approximate region fallback instead of error/unidentified
+        val regionFallback = if (point != null && isWithinMontesClarosBounds(point.latitude, point.longitude)) {
+            when {
+                point.latitude < -16.74 -> "Região Sul"
+                point.latitude > -16.71 -> "Região Norte"
+                point.longitude < -43.87 -> "Região Oeste"
+                point.longitude > -43.85 -> "Região Leste"
+                else -> "Região Central"
+            }
+        } else {
+            "Montes Claros - MG"
+        }
+
         return NeighborhoodMatchResult(
-            name = UNIDENTIFIED_NEIGHBORHOOD,
-            confidence = NeighborhoodConfidence.UNIDENTIFIED,
+            name = regionFallback,
+            confidence = NeighborhoodConfidence.MEDIUM,
             rule = null,
-            sourceDetail = "Não localizado no catálogo ou Geocoder"
+            sourceDetail = "Região aproximada Montes Claros"
         )
     }
 
