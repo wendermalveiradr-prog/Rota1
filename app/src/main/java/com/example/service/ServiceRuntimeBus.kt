@@ -182,4 +182,10 @@ object ServiceRuntimeBus {
     fun requestImmediateScreenOcr() {
         _manualOcrTrigger.tryEmit(Unit)
     }
+
+    fun requestExpandOverlay() {
+        _state.update { current ->
+            current.copy(expandNonce = current.expandNonce + 1L)
+        }
+    }
 }

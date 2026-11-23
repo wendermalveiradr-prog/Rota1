@@ -168,8 +168,8 @@ class RouteCalculator(
                 round2((haversineKm(validStart, pickupPoint) * urbanFactor).coerceAtLeast(0.20))
             }
             val catalogL2 = round2((haversineKm(pickupPoint, customerPoint) * urbanFactor).coerceAtLeast(0.30))
-            val l2 = if (hasScreenKm && screenTotalKmHint!! > (l1 + 0.30)) {
-                maxOf(catalogL2, round2(screenTotalKmHint - l1))
+            val l2 = if (hasScreenKm) {
+                round2(screenTotalKmHint!!)
             } else {
                 catalogL2
             }
@@ -192,22 +192,17 @@ class RouteCalculator(
         }
 
         if (hasScreenKm) {
-            val totalScreen = screenTotalKmHint!!
+            val l2 = round2(screenTotalKmHint!!)
             val urbanFactor = 1.32
             val l1 = when {
                 hasPickupDist -> round2(pickupDistanceHintKm!!)
                 pickupPoint != null -> round2((haversineKm(validStart, pickupPoint) * urbanFactor).coerceAtLeast(0.20))
-                else -> round2((totalScreen * (if (countReturn) 0.25 else 0.35)).coerceAtLeast(0.30))
-            }
-            val l2 = if (totalScreen > l1 + 0.30) {
-                round2(totalScreen - l1)
-            } else {
-                round2((totalScreen * (if (countReturn) 0.55 else 0.70)).coerceAtLeast(0.40))
+                else -> round2(1.50)
             }
             val l3 = if (countReturn) {
                 when {
                     customerPoint != null -> round2((haversineKm(customerPoint, validStart) * urbanFactor).coerceAtLeast(0.20))
-                    else -> round2((totalScreen * 0.20).coerceAtLeast(0.50))
+                    else -> round2(2.00)
                 }
             } else {
                 0.0

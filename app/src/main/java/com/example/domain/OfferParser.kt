@@ -151,7 +151,7 @@ object OfferParser {
     )
 
     private enum class BlockSection {
-        HEADER, STORE, PICKUP, CUSTOMER
+        HEADER, STORE, PICKUP, CUSTOMER, RETURN
     }
 
     fun isDetailsScreenText(rawText: String): Boolean {

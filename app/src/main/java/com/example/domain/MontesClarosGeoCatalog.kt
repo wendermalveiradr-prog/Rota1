@@ -174,7 +174,8 @@ object MontesClarosGeoCatalog {
         KnownNeighborhood("Vila Greice", -16.7350, -43.8420, NeighborhoodStatus.NEUTRAL, "Região leste"),
         KnownNeighborhood("Amazonas", -16.7200, -43.8720, NeighborhoodStatus.NEUTRAL, "Região oeste"),
         KnownNeighborhood("Guarujá", -16.7230, -43.8750, NeighborhoodStatus.NEUTRAL, "Região oeste"),
-        KnownNeighborhood("Conjunto José Carlos de Lima", -16.7080, -43.8550, NeighborhoodStatus.NEUTRAL, "Região norte")
+        KnownNeighborhood("Conjunto José Carlos de Lima", -16.7080, -43.8550, NeighborhoodStatus.NEUTRAL, "Região norte"),
+        KnownNeighborhood("Belvedere", -16.7380, -43.8650, NeighborhoodStatus.NEUTRAL, "Região central/sul")
     )
 
     private val neighborhoodAliases: Map<String, String> = mapOf(
@@ -220,7 +221,8 @@ object MontesClarosGeoCatalog {
         "antonio pimenta" to "Antônio Pimenta",
         "canelas i" to "Canelas",
         "canelas ii" to "Canelas II",
-        "cecap" to "Parque Cecap"
+        "cecap" to "Parque Cecap",
+        "belvedere" to "Belvedere"
     )
 
     private val landmarkHints: Map<String, String> = mapOf(
@@ -243,6 +245,8 @@ object MontesClarosGeoCatalog {
         "parque municipal" to "Morada do Parque",
         "milton prates" to "Morada do Parque",
         "ceanorte" to "Cidade Industrial",
+        "comendador antonio loureiro ramos" to "Cidade Industrial",
+        "antonio loureiro ramos" to "Cidade Industrial",
         "deputado esteves rodrigues" to "Centro",
         "esteves rodrigues" to "Centro",
         "av sanitaria" to "Centro",

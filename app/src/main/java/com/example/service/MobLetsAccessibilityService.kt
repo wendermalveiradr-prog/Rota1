@@ -141,6 +141,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
 
             // New distinct offer detected -> cancel only pending accessibility parsing job and start instant analysis
             lastActiveOfferSignature = signature
+            ServiceRuntimeBus.requestExpandOverlay()
             activeEventJob?.cancel()
             activeEventJob = serviceScope.launch {
                 try {
