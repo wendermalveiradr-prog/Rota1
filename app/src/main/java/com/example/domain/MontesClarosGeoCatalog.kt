@@ -182,7 +182,9 @@ object MontesClarosGeoCatalog {
         "delfino" to "Delfino Magalhães",
         "sao judas" to "São Judas Tadeu",
         "vila joao gordo" to "João Gordo",
-        "alto s joao" to "Alto São João"
+        "alto s joao" to "Alto São João",
+        "carmelo" to "Monte Carmelo",
+        "distrito industrial" to "Cidade Industrial"
     )
 
     private val landmarkHints: Map<String, String> = mapOf(
@@ -439,7 +441,7 @@ object MontesClarosGeoCatalog {
                 else -> "Região Central"
             }
         } else {
-            "Montes Claros - MG"
+            "Montes Claros"
         }
 
         return NeighborhoodMatchResult(

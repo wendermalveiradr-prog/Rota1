@@ -596,63 +596,38 @@ class FloatingOverlayService : Service() {
         val priceTxt = String.format(ptBr, "R$ %.2f", offer.offerPriceBrl)
         val rateTxt = String.format(ptBr, "R$ %.2f/km", offer.earningsPerKm)
         val totalKmTxt = String.format(ptBr, "%.1f km", offer.totalKm)
-        val routeTypeTag = when (offer.routeSource) {
-            com.example.domain.RouteCalculator.ROUTE_SOURCE_OSRM -> "OSRM Real"
-            com.example.domain.RouteCalculator.ROUTE_SOURCE_INSTANT_OFFLINE -> "Instantânea"
-            else -> "Estimada"
-        }
-        rateMetricView.text = "$priceTxt • $totalKmTxt ($routeTypeTag) • $rateTxt"
 
-        val storeIdentified = offer.storeName.isNotBlank()
-        val storeLabel = offer.storeName.ifBlank { MontesClarosGeoCatalog.UNIDENTIFIED_NEIGHBORHOOD }
-        val storeConf = FieldConfidence.fromStored(offer.storeConfidence).labelPt
-        val pickupAddrLabel = offer.pickupAddress.ifBlank { MontesClarosGeoCatalog.UNIDENTIFIED_NEIGHBORHOOD }
-        val pickupNbUnidentified = MontesClarosGeoCatalog.isUnidentified(offer.pickupNeighborhood)
-        val pickupNbLabel = if (pickupNbUnidentified) MontesClarosGeoCatalog.UNIDENTIFIED_NEIGHBORHOOD else offer.pickupNeighborhood
-        val pickupNbConf = FieldConfidence.fromStored(offer.pickupNeighborhoodConfidence).labelPt
-        val customerAddrLabel = offer.customerAddress.ifBlank { MontesClarosGeoCatalog.UNIDENTIFIED_NEIGHBORHOOD }
-        val customerNbUnidentified = MontesClarosGeoCatalog.isUnidentified(offer.customerNeighborhood)
-        val customerNbLabel = if (customerNbUnidentified) MontesClarosGeoCatalog.UNIDENTIFIED_NEIGHBORHOOD else offer.customerNeighborhood
-        val customerNbConf = FieldConfidence.fromStored(offer.customerNeighborhoodConfidence).labelPt
+        val emoji = when (offer.decision) {
+            TrafficLightDecision.GREEN.name -> "🟢 COMPENSA"
+            TrafficLightDecision.YELLOW.name -> "🟡 ATENÇÃO"
+            else -> "🔴 NÃO COMPENSA"
+        }
+
+        rateMetricView.text = "$emoji • $rateTxt"
+        decisionTitleView.text = String.format(ptBr, "Valor: R$ %.2f • Total: %.1f km", offer.offerPriceBrl, offer.totalKm)
+
+        val storeText = if (offer.storeName.isNotBlank()) offer.storeName else "Montes Claros"
+        val pickupNb = if (MontesClarosGeoCatalog.isUnidentified(offer.pickupNeighborhood)) "Montes Claros" else offer.pickupNeighborhood
+        val pickupText = if (offer.pickupAddress.isNotBlank()) "Retirada: $pickupNb (${offer.pickupAddress})" else "Retirada: $pickupNb"
+        val customerNb = if (MontesClarosGeoCatalog.isUnidentified(offer.customerNeighborhood)) "Montes Claros" else offer.customerNeighborhood
+        val customerText = if (offer.customerAddress.isNotBlank()) "Entrega: $customerNb (${offer.customerAddress})" else "Entrega: $customerNb"
 
         offerSummaryView.text = buildString {
-            appendLine("Loja: $storeLabel (Conf. $storeConf)")
-            appendLine("Retirada: $pickupAddrLabel")
-            appendLine("Bairro retirada: $pickupNbLabel (Conf. $pickupNbConf)")
-            appendLine("Entrega: $customerAddrLabel")
-            append("Bairro entrega: $customerNbLabel (Conf. $customerNbConf)")
+            appendLine("Loja: $storeText")
+            appendLine(pickupText)
+            append(customerText)
         }
+
+        val returnKm = if (offer.leg3CustomerToCenterKm > 0) offer.leg3CustomerToCenterKm else 0.0
         routeBreakdownView.text = String.format(
             ptBr,
-            "1) %.1fkm Loja  2) %.1fkm Cliente  3) %.1fkm Centro",
+            "Loja %.1f km • Corrida %.1f km • Volta %.1f km",
             offer.leg1CurrentToPickupKm,
             offer.leg2PickupToCustomerKm,
-            offer.leg3CustomerToCenterKm
+            returnKm
         )
 
-        val hasUnidentifiedNeighborhood = pickupNbUnidentified || customerNbUnidentified
-        val hasUnidentifiedStore = !storeIdentified
-
-        if (!offer.neighborhoodAlert.isNullOrBlank()) {
-            alertBannerView.visibility = View.VISIBLE
-            (alertBannerView.background as? GradientDrawable)?.setColor(Color.parseColor("#7F1D1D"))
-            alertBannerView.setTextColor(Color.parseColor("#FECACA"))
-            alertBannerView.text = "⚠ ${offer.neighborhoodAlert}"
-        } else if (hasUnidentifiedNeighborhood || hasUnidentifiedStore) {
-            alertBannerView.visibility = View.VISIBLE
-            (alertBannerView.background as? GradientDrawable)?.setColor(Color.parseColor("#78350F"))
-            alertBannerView.setTextColor(Color.parseColor("#FDE68A"))
-            alertBannerView.text = when {
-                hasUnidentifiedNeighborhood && hasUnidentifiedStore ->
-                    "⚠ Loja e bairro: Não identificado — confira antes de aceitar"
-                hasUnidentifiedNeighborhood ->
-                    "⚠ Bairro: Não identificado — confira o endereço"
-                else ->
-                    "⚠ Nome da loja: Não identificado — confira antes de aceitar"
-            }
-        } else {
-            alertBannerView.visibility = View.GONE
-        }
+        alertBannerView.visibility = View.GONE
     }
 
     private fun circleDrawable(color: Int): GradientDrawable = GradientDrawable().apply {

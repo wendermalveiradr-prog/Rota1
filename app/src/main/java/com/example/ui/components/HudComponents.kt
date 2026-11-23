@@ -272,48 +272,6 @@ fun TrafficLightDecisionCard(
                 }
             }
 
-            val hasUnidentifiedNeighborhood =
-                MontesClarosGeoCatalog.isUnidentified(offer.pickupNeighborhood) ||
-                    MontesClarosGeoCatalog.isUnidentified(offer.customerNeighborhood)
-            val hasUnidentifiedStore = offer.storeName.isBlank()
-            if (hasUnidentifiedNeighborhood || hasUnidentifiedStore) {
-                Spacer(modifier = Modifier.height(10.dp))
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.small,
-                    color = rotaColors.yellowContainer
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Warning,
-                            contentDescription = "Identificação pendente",
-                            tint = rotaColors.yellow,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        val warningMessage = when {
-                            hasUnidentifiedNeighborhood && hasUnidentifiedStore ->
-                                "Nome da loja e bairro: Não identificado — confira antes de aceitar."
-                            hasUnidentifiedNeighborhood ->
-                                "Bairro: Não identificado com segurança — confira o endereço antes de aceitar."
-                            else ->
-                                "Nome da loja: Não identificado na tela — confira antes de aceitar."
-                        }
-                        Text(
-                            text = warningMessage,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = rotaColors.onYellowContainer,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-            }
-
             Spacer(modifier = Modifier.height(14.dp))
 
             RouteFourLegDiagram(offer = offer)
