@@ -399,13 +399,26 @@ object OfferParser {
 
                         BlockSection.RETURN -> continue
                         BlockSection.HEADER -> {
-                            if (!isDistanceOrMetaNoise(line) &&
-                                !looksLikeAddressLine(line) &&
-                                !MontesClarosGeoCatalog.isPureNeighborhoodOrCity(line)
-                            ) {
-                                headerCandidatesBeforePickup.add(line)
+                        val rawStoreMatch = Regex("^(.+?)\s*-\s*\(\s*\d+(?:[.,]\d+)?\s*(?:km|m)\s*\)$", RegexOption.IGNORE_CASE).find(rawLine.trim())
+                        if (rawStoreMatch != null) {
+                            val cleanStore = rawStoreMatch.groupValues.trim()
+                            if (cleanStore.isNotBlank() && !cleanStore.lowercase().contains("carteira") && !cleanStore.lowercase().contains("faturado")) {
+                                detectedStoreName = cleanStore
+                                currentSection = BlockSection.PICKUP
                             }
+                        } else if (looksLikeAddressLine(line) && !line.lowercase().contains("carteira") && !line.lowercase().contains("faturado")) {
+                            pickupParts.add(line)
+                            pickupFromExplicitSection = true
+                            currentSection = BlockSection.PICKUP
+                        } else if (!isDistanceOrMetaNoise(line) &&
+                            !MontesClarosGeoCatalog.isPureNeighborhoodOrCity(line) &&
+                            !line.lowercase().contains("carteira") &&
+                            !line.lowercase().contains("faturado") &&
+                            !line.lowercase().startsWith("os ")
+                        ) {
+                            headerCandidatesBeforePickup.add(line)
                         }
+                    }
                     }
                 }
             }
