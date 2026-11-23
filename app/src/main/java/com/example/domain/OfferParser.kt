@@ -397,6 +397,7 @@ object OfferParser {
                             }
                         }
 
+                        BlockSection.RETURN -> continue
                         BlockSection.HEADER -> {
                             if (!isDistanceOrMetaNoise(line) &&
                                 !looksLikeAddressLine(line) &&
