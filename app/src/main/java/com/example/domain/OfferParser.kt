@@ -257,10 +257,27 @@ object OfferParser {
         var firstPickupLineIndex = -1
         val headerCandidatesBeforePickup = mutableListOf<String>()
 
+        val paymentNoiseTerms = setOf(
+            "carteira de creditos", "carteira de créditos", "faturado", "dinheiro", "pix",
+            "cartao", "cartão", "credito", "crédito", "debito", "débito", "pagamento"
+        )
+
         for (i in cleanLines.indices) {
             val rawLine = cleanLines[i]
             val line = stripParenthesizedDistance(rawLine)
             if (line.isBlank()) continue
+
+            val lowerLine = line.lowercase()
+            if (paymentNoiseTerms.any { lowerLine.contains(it) } || lowerLine.startsWith("os ") || lowerLine.startsWith("pedido")) {
+                continue
+            }
+            if (lowerLine.startsWith("retorno") || lowerLine.contains("ponto de retorno")) {
+                currentSection = BlockSection.RETURN
+                continue
+            }
+            if (currentSection == BlockSection.RETURN) {
+                continue
+            }
 
             if (isUiScreenHeaderLine(line) || isUiFooterCtaLine(line)) {
                 currentSection = BlockSection.HEADER

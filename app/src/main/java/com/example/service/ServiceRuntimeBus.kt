@@ -14,10 +14,11 @@ data class ServiceRuntimeState(
     val activeRunId: Long = 0L,
     val isAccessibilityConnected: Boolean = false,
     val isOverlayServiceRunning: Boolean = false,
+    val overlayStoppedByUser: Boolean = false,
     val isAnalyzing: Boolean = false,
     val lastDetectedPackage: String = "",
     val foregroundPackage: String = "",
-    val isForegroundMobLets: Boolean = false,
+    val isForegroundTargetApp: Boolean = false,
     val minimizeNonce: Long = 0L,
     val expandNonce: Long = 0L,
     val lastCaptureMethod: String = "Aguardando oferta",
@@ -40,12 +41,26 @@ object ServiceRuntimeBus {
 
     fun isRunCurrent(runId: Long): Boolean = runId >= _state.value.activeRunId
 
+    fun isTargetDeliveryPackage(pkg: String, screenText: String = ""): Boolean {
+        val p = pkg.lowercase()
+        val t = screenText.lowercase()
+        return p.contains("moblets") ||
+            p.contains("mob.lets") ||
+            p.contains("mob_lets") ||
+            p.contains("mobilete") ||
+            p.contains("delivery") ||
+            p.contains("entregador") ||
+            t.contains("mob lets") ||
+            t.contains("moblets") ||
+            t.contains("mobilete")
+    }
+
     fun setAccessibilityConnected(connected: Boolean) {
         _state.update {
             it.copy(
                 isAccessibilityConnected = connected,
                 lastStatusMessage = if (connected) {
-                    "Acessibilidade conectada ao leitor Mob Lets"
+                    "Acessibilidade conectada (Mob Lets / Mobilete)"
                 } else {
                     "Acessibilidade desconectada"
                 }
@@ -54,25 +69,40 @@ object ServiceRuntimeBus {
     }
 
     fun setOverlayServiceRunning(running: Boolean) {
-        _state.update { it.copy(isOverlayServiceRunning = running) }
+        _state.update {
+            it.copy(
+                isOverlayServiceRunning = running,
+                overlayStoppedByUser = if (running) false else it.overlayStoppedByUser
+            )
+        }
     }
 
-    fun onForegroundAppChanged(packageName: String, isMobLets: Boolean) {
+    fun markOverlayStoppedByUser() {
+        _state.update {
+            it.copy(
+                isOverlayServiceRunning = false,
+                overlayStoppedByUser = true,
+                isForegroundTargetApp = false
+            )
+        }
+    }
+
+    fun allowOverlayAutoStart() {
+        _state.update { it.copy(overlayStoppedByUser = false) }
+    }
+
+    fun onForegroundAppChanged(packageName: String, isTargetApp: Boolean) {
         if (packageName.isBlank()) return
         _state.update { current ->
             val packageChanged = current.foregroundPackage != packageName
-            val modeChanged = current.isForegroundMobLets != isMobLets
+            val modeChanged = current.isForegroundTargetApp != isTargetApp
             if (!packageChanged && !modeChanged) return@update current
 
             current.copy(
                 foregroundPackage = packageName,
-                isForegroundMobLets = isMobLets,
-                minimizeNonce = if (!isMobLets) current.minimizeNonce + 1L else current.minimizeNonce,
-                expandNonce = if (isMobLets && !current.isForegroundMobLets) {
-                    current.expandNonce + 1L
-                } else {
-                    current.expandNonce
-                }
+                isForegroundTargetApp = isTargetApp,
+                minimizeNonce = if (!isTargetApp) current.minimizeNonce + 1L else current.minimizeNonce,
+                expandNonce = if (isTargetApp) current.expandNonce + 1L else current.expandNonce
             )
         }
     }
@@ -83,7 +113,6 @@ object ServiceRuntimeBus {
             current.copy(
                 activeRunId = runId,
                 isAnalyzing = true,
-                latestOffer = null,
                 lastAnalysisError = null,
                 lastDetectedPackage = detectedPackage.ifBlank { current.lastDetectedPackage },
                 lastStatusMessage = message
@@ -94,10 +123,8 @@ object ServiceRuntimeBus {
     fun completeRun(runId: Long, offer: AnalyzedOfferEntity, detectedPackage: String = "") {
         _state.update { current ->
             if (runId < current.activeRunId) return@update current
-            val shouldExpandForMobLets = current.isForegroundMobLets ||
-                detectedPackage.contains("moblets", ignoreCase = true) ||
-                detectedPackage.contains("mob.lets", ignoreCase = true) ||
-                detectedPackage.contains("mob_lets", ignoreCase = true)
+            val shouldExpand = current.isForegroundTargetApp ||
+                isTargetDeliveryPackage(detectedPackage, offer.rawSnippet)
             current.copy(
                 activeRunId = runId,
                 isAnalyzing = false,
@@ -106,9 +133,13 @@ object ServiceRuntimeBus {
                 lastDetectedPackage = detectedPackage.ifBlank { current.lastDetectedPackage },
                 lastCaptureMethod = offer.source,
                 lastDetectionTimestamp = offer.timestamp,
-                lastOcrFallbackTimestamp = if (offer.source.startsWith("OCR")) offer.timestamp else current.lastOcrFallbackTimestamp,
+                lastOcrFallbackTimestamp = if (offer.source.startsWith("OCR")) {
+                    offer.timestamp
+                } else {
+                    current.lastOcrFallbackTimestamp
+                },
                 lastStatusMessage = offer.decisionReason,
-                expandNonce = if (shouldExpandForMobLets) current.expandNonce + 1L else current.expandNonce
+                expandNonce = if (shouldExpand) current.expandNonce + 1L else current.expandNonce
             )
         }
     }
@@ -140,6 +171,15 @@ object ServiceRuntimeBus {
         }
     }
 
+    fun updateStatusMessage(message: String, detectedPackage: String? = null) {
+        _state.update {
+            it.copy(
+                lastStatusMessage = message,
+                lastDetectedPackage = detectedPackage ?: it.lastDetectedPackage
+            )
+        }
+    }
+
     fun clearLatestOffer() {
         _state.update {
             it.copy(
@@ -147,34 +187,10 @@ object ServiceRuntimeBus {
                 latestOffer = null,
                 lastAnalysisError = null,
                 lastStatusMessage = if (it.isAccessibilityConnected) {
-                    "Aguardando nova oferta do Mob Lets..."
+                    "Aguardando nova oferta..."
                 } else {
                     "Serviços prontos para monitoramento"
                 }
-            )
-        }
-    }
-
-    fun setAnalyzing(analyzing: Boolean, message: String? = null) {
-        _state.update {
-            it.copy(
-                isAnalyzing = analyzing,
-                lastAnalysisError = if (analyzing) null else it.lastAnalysisError,
-                lastStatusMessage = message ?: it.lastStatusMessage
-            )
-        }
-    }
-
-    fun onOfferAnalyzed(offer: AnalyzedOfferEntity, detectedPackage: String = "") {
-        val runId = nextRunId()
-        completeRun(runId, offer, detectedPackage)
-    }
-
-    fun updateStatusMessage(message: String, detectedPackage: String? = null) {
-        _state.update {
-            it.copy(
-                lastStatusMessage = message,
-                lastDetectedPackage = detectedPackage ?: it.lastDetectedPackage
             )
         }
     }

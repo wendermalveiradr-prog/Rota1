@@ -80,16 +80,16 @@ class MobLetsAccessibilityService : AccessibilityService() {
         // Track foreground app changes before ignoring our own app so opening Rota Inteligente IA
         // or switching away from Mob Lets immediately minimizes the floating overlay pill.
         if (pkg == packageName) {
-            ServiceRuntimeBus.onForegroundAppChanged(pkg, isMobLets = false)
+            ServiceRuntimeBus.onForegroundAppChanged(pkg, isTargetApp = false)
             return
         }
 
         if (pkg == "com.android.settings") {
-            ServiceRuntimeBus.onForegroundAppChanged(pkg, isMobLets = false)
+            ServiceRuntimeBus.onForegroundAppChanged(pkg, isTargetApp = false)
             return
         }
 
-        ServiceRuntimeBus.onForegroundAppChanged(pkg, isMobLets = isMobLetsPackage)
+        ServiceRuntimeBus.onForegroundAppChanged(pkg, isTargetApp = isMobLetsPackage)
 
         if (activeEventJob?.isActive == true) return
         val now = System.currentTimeMillis()

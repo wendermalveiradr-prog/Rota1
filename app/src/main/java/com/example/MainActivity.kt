@@ -97,7 +97,7 @@ fun RotaInteligenteRoot(
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         ServiceRuntimeBus.onForegroundAppChanged(
             packageName = context.packageName,
-            isMobLets = false
+            isTargetApp = false
         )
         viewModel.refreshPermissions()
     }

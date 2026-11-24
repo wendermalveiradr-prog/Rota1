@@ -1,5 +1,6 @@
 package com.example.service
 
+import android.app.AlertDialog
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -13,12 +14,11 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
+import android.text.InputType
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
-import android.app.AlertDialog
-import android.text.InputType
 import android.view.WindowManager
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -31,7 +31,6 @@ import com.example.data.local.OfferCaptureSource
 import com.example.data.local.TrafficLightDecision
 import com.example.data.preferences.DriverPreferencesRepository
 import com.example.data.preferences.DriverSettings
-import com.example.domain.FieldConfidence
 import com.example.domain.MontesClarosGeoCatalog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +43,13 @@ import kotlin.math.abs
 
 class FloatingOverlayService : Service() {
 
+    companion object {
+        const val ACTION_STOP = "com.example.action.STOP_OVERLAY"
+        const val ACTION_SHOW_OR_UPDATE = "com.example.action.SHOW_OR_UPDATE"
+        private const val CHANNEL_ID = "floating_overlay_channel"
+        private const val NOTIFICATION_ID = 1001
+    }
+
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val prefsRepo by lazy { DriverPreferencesRepository(applicationContext) }
     private var currentSettings = DriverSettings()
@@ -51,6 +57,7 @@ class FloatingOverlayService : Service() {
     private var overlayRoot: LinearLayout? = null
     private var layoutParams: WindowManager.LayoutParams? = null
     private var isExpanded = false
+    private var isStopping = false
     private var lastHandledMinimizeNonce = 0L
     private var lastHandledExpandNonce = 0L
 
@@ -72,6 +79,8 @@ class FloatingOverlayService : Service() {
     private lateinit var contarVoltaBtn: TextView
     private lateinit var metaButton: TextView
 
+    override fun onBind(intent: Intent?): IBinder? = null
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
@@ -84,9 +93,10 @@ class FloatingOverlayService : Service() {
 
         serviceScope.launch {
             prefsRepo.settingsFlow.collectLatest { settings ->
+                if (isStopping) return@collectLatest
                 currentSettings = settings
                 if (::contarVoltaBtn.isInitialized) {
-                    contarVoltaBtn.text = if (settings.countReturnEnabled) "🔄 Contar volta: ON" else "🔄 Contar volta: OFF"
+                    contarVoltaBtn.text = if (settings.countReturnEnabled) "🔄 Volta: ON" else "🔄 Volta: OFF"
                 }
                 if (::metaButton.isInitialized) {
                     metaButton.text = String.format(Locale("pt", "BR"), "Meta: R$ %.2f", settings.minTargetPerKm)
@@ -97,6 +107,7 @@ class FloatingOverlayService : Service() {
 
         serviceScope.launch {
             ServiceRuntimeBus.state.collectLatest { runtime ->
+                if (isStopping) return@collectLatest
                 renderState(runtime)
             }
         }
@@ -105,10 +116,14 @@ class FloatingOverlayService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> {
-                stopSelf()
+                stopOverlayNow()
                 return START_NOT_STICKY
             }
             ACTION_SHOW_OR_UPDATE -> {
+                if (isStopping || ServiceRuntimeBus.state.value.overlayStoppedByUser) {
+                    stopOverlayNow()
+                    return START_NOT_STICKY
+                }
                 if (overlayRoot == null && Settings.canDrawOverlays(this)) {
                     attachOverlayWindow()
                 }
@@ -118,12 +133,42 @@ class FloatingOverlayService : Service() {
         return START_STICKY
     }
 
+    private fun stopOverlayNow() {
+        if (isStopping) return
+        isStopping = true
+        ServiceRuntimeBus.markOverlayStoppedByUser()
+        detachOverlayWindow()
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                @Suppress("DEPRECATION")
+                stopForeground(true)
+            }
+        } catch (_: Exception) {
+        }
+        stopSelf()
+    }
+
+    private fun detachOverlayWindow() {
+        val view = overlayRoot ?: return
+        overlayRoot = null
+        try {
+            windowManager?.removeViewImmediate(view)
+        } catch (_: Exception) {
+            try {
+                windowManager?.removeView(view)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
     private fun attachOverlayWindow() {
-        if (overlayRoot != null) return
+        if (overlayRoot != null || isStopping) return
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
         val initialRuntime = ServiceRuntimeBus.state.value
-        isExpanded = initialRuntime.isForegroundMobLets
+        isExpanded = initialRuntime.isForegroundTargetApp
         lastHandledMinimizeNonce = initialRuntime.minimizeNonce
         lastHandledExpandNonce = initialRuntime.expandNonce
 
@@ -135,15 +180,15 @@ class FloatingOverlayService : Service() {
         }
 
         val params = WindowManager.LayoutParams(
-            if (isExpanded) dp(304) else WindowManager.LayoutParams.WRAP_CONTENT,
+            if (isExpanded) dp(318) else WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             overlayType,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = dp(16)
-            y = dp(96)
+            x = dp(12)
+            y = dp(110)
         }
         layoutParams = params
 
@@ -159,7 +204,7 @@ class FloatingOverlayService : Service() {
 
     private fun buildOverlayView(): LinearLayout {
         val cardBg = GradientDrawable().apply {
-            setColor(Color.parseColor("#F00B1220"))
+            setColor(Color.parseColor("#F50B1220"))
             cornerRadius = dp(18).toFloat()
             setStroke(dp(1), Color.parseColor("#334155"))
         }
@@ -168,15 +213,14 @@ class FloatingOverlayService : Service() {
             orientation = LinearLayout.VERTICAL
             background = cardBg
             setPadding(dp(12), dp(10), dp(12), dp(10))
-            elevation = dp(12).toFloat()
+            elevation = dp(14).toFloat()
         }
 
-        // Discreet floating pill shown outside Mob Lets or when minimized by the user
         minimizedPillContainer = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            minimumHeight = dp(32)
-            setPadding(dp(2), dp(2), dp(4), dp(2))
+            minimumHeight = dp(34)
+            setPadding(dp(4), dp(2), dp(6), dp(2))
         }
 
         minimizedDotView = View(this).apply {
@@ -187,7 +231,7 @@ class FloatingOverlayService : Service() {
         }
 
         minimizedLabelView = TextView(this).apply {
-            text = "MOB LETS"
+            text = "ROTA IA"
             setTextColor(Color.WHITE)
             textSize = 11.5f
             typeface = Typeface.DEFAULT_BOLD
@@ -200,7 +244,6 @@ class FloatingOverlayService : Service() {
             applyExpandedState(expanded = true, updateWindowLayout = true)
         }
 
-        // Full expanded diagnostic card shown over Mob Lets offers
         expandedCardContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
@@ -232,7 +275,7 @@ class FloatingOverlayService : Service() {
         }
 
         rateMetricView = TextView(this).apply {
-            text = "Aguardando oferta Mob Lets..."
+            text = "Aguardando oferta..."
             setTextColor(Color.parseColor("#94A3B8"))
             textSize = 11f
             maxLines = 1
@@ -247,6 +290,7 @@ class FloatingOverlayService : Service() {
             setTextColor(Color.parseColor("#CBD5E1"))
             textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
+            maxLines = 1
             setPadding(dp(10), dp(4), dp(10), dp(4))
             setOnClickListener {
                 applyExpandedState(expanded = !isExpanded, updateWindowLayout = true)
@@ -258,8 +302,9 @@ class FloatingOverlayService : Service() {
             setTextColor(Color.parseColor("#F87171"))
             textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
+            maxLines = 1
             setPadding(dp(8), dp(4), dp(4), dp(4))
-            setOnClickListener { stopSelf() }
+            setOnClickListener { stopOverlayNow() }
         }
 
         headerContainer.addView(decisionDotView)
@@ -274,16 +319,17 @@ class FloatingOverlayService : Service() {
         }
 
         offerSummaryView = TextView(this).apply {
-            text = "Abra o Mob Lets para leitura automática via Acessibilidade ou OCR."
+            text = "Abra o app de entregas para leitura automática em Montes Claros."
             setTextColor(Color.parseColor("#E2E8F0"))
-            textSize = 12f
+            textSize = 11.5f
             setLineSpacing(dp(2).toFloat(), 1f)
         }
 
         routeBreakdownView = TextView(this).apply {
-            text = "Etapas: Atual → Loja → Cliente → Centro MOC"
+            text = "Rota: Atual → Loja → Cliente"
             setTextColor(Color.parseColor("#38BDF8"))
             textSize = 11f
+            maxLines = 1
             setPadding(0, dp(4), 0, 0)
         }
 
@@ -311,15 +357,16 @@ class FloatingOverlayService : Service() {
         val controlsRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(4), 0, dp(4))
+            setPadding(0, dp(6), 0, dp(4))
         }
 
         contarVoltaBtn = TextView(this).apply {
-            text = if (currentSettings.countReturnEnabled) "🔄 Contar volta: ON" else "🔄 Contar volta: OFF"
+            text = if (currentSettings.countReturnEnabled) "🔄 Volta: ON" else "🔄 Volta: OFF"
             setTextColor(Color.parseColor("#BAE6FD"))
-            textSize = 10f
+            textSize = 9.5f
             typeface = Typeface.DEFAULT_BOLD
-            setPadding(dp(6), dp(3), dp(6), dp(3))
+            maxLines = 1
+            setPadding(dp(5), dp(3), dp(5), dp(3))
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#0C4A6E"))
                 cornerRadius = dp(8).toFloat()
@@ -336,29 +383,28 @@ class FloatingOverlayService : Service() {
         metaButton = TextView(this).apply {
             text = String.format(Locale("pt", "BR"), "Meta: R$ %.2f", currentSettings.minTargetPerKm)
             setTextColor(Color.parseColor("#34D399"))
-            textSize = 10f
+            textSize = 9.5f
             typeface = Typeface.DEFAULT_BOLD
-            setPadding(dp(6), dp(3), dp(6), dp(3))
+            maxLines = 1
+            setPadding(dp(5), dp(3), dp(5), dp(3))
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#064E3B"))
                 cornerRadius = dp(8).toFloat()
             }
-            setOnClickListener {
-                showGoalEditDialog()
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                marginStart = dp(3)
             }
+            setOnClickListener { showGoalEditDialog() }
         }
-
-        val btn150 = createGoalPresetButton("1.50")
-        val btn190 = createGoalPresetButton("1.90")
-        val btn200 = createGoalPresetButton("2.00")
-        val btn250 = createGoalPresetButton("2.50")
 
         controlsRow.addView(contarVoltaBtn)
         controlsRow.addView(metaButton)
-        controlsRow.addView(btn150)
-        controlsRow.addView(btn190)
-        controlsRow.addView(btn200)
-        controlsRow.addView(btn250)
+        listOf("1.50", "1.90", "2.50").forEach { preset ->
+            controlsRow.addView(createGoalPresetButton(preset))
+        }
 
         detailsContainer.addView(controlsRow)
         detailsContainer.addView(alertBannerView)
@@ -374,14 +420,13 @@ class FloatingOverlayService : Service() {
             setTextColor(Color.parseColor("#BAE6FD"))
             textSize = 11f
             typeface = Typeface.DEFAULT_BOLD
+            maxLines = 1
             setPadding(dp(10), dp(6), dp(10), dp(6))
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#0C4A6E"))
                 cornerRadius = dp(10).toFloat()
             }
-            setOnClickListener {
-                ServiceRuntimeBus.requestImmediateScreenOcr()
-            }
+            setOnClickListener { ServiceRuntimeBus.requestImmediateScreenOcr() }
         }
 
         val openAppBtn = TextView(this).apply {
@@ -389,6 +434,7 @@ class FloatingOverlayService : Service() {
             setTextColor(Color.WHITE)
             textSize = 11f
             typeface = Typeface.DEFAULT_BOLD
+            maxLines = 1
             setPadding(dp(10), dp(6), dp(10), dp(6))
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#1E293B"))
@@ -443,8 +489,8 @@ class FloatingOverlayService : Service() {
                     val dx = (event.rawX - initialTouchX).toInt()
                     val dy = (event.rawY - initialTouchY).toInt()
                     if (abs(dx) > 6 || abs(dy) > 6) moved = true
-                    lp.x = initialX + dx
-                    lp.y = initialY + dy
+                    lp.x = (initialX + dx).coerceAtLeast(0)
+                    lp.y = (initialY + dy).coerceAtLeast(0)
                     try {
                         windowManager?.updateViewLayout(rootView, lp)
                     } catch (_: Exception) {
@@ -452,9 +498,7 @@ class FloatingOverlayService : Service() {
                     true
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (!moved) {
-                        onTap?.invoke()
-                    }
+                    if (!moved) onTap?.invoke()
                     moved || onTap != null
                 }
                 else -> false
@@ -485,7 +529,7 @@ class FloatingOverlayService : Service() {
         if (updateWindowLayout) {
             val lp = layoutParams
             if (lp != null && rootView != null) {
-                val targetWidth = if (expanded) dp(304) else WindowManager.LayoutParams.WRAP_CONTENT
+                val targetWidth = if (expanded) dp(318) else WindowManager.LayoutParams.WRAP_CONTENT
                 if (lp.width != targetWidth) {
                     lp.width = targetWidth
                     try {
@@ -498,53 +542,51 @@ class FloatingOverlayService : Service() {
     }
 
     private fun renderState(runtime: ServiceRuntimeState) {
-        if (overlayRoot == null) return
+        if (overlayRoot == null || isStopping) return
 
         if (runtime.minimizeNonce != lastHandledMinimizeNonce) {
             lastHandledMinimizeNonce = runtime.minimizeNonce
-            if (!runtime.isForegroundMobLets) {
+            if (!runtime.isForegroundTargetApp) {
                 applyExpandedState(expanded = false, updateWindowLayout = true)
             }
         }
 
         if (runtime.expandNonce != lastHandledExpandNonce) {
             lastHandledExpandNonce = runtime.expandNonce
-            val allowExpand = runtime.isForegroundMobLets ||
-                (runtime.foregroundPackage.isBlank() &&
-                    runtime.lastDetectedPackage.contains("mob", ignoreCase = true))
+            val allowExpand = runtime.isForegroundTargetApp ||
+                ServiceRuntimeBus.isTargetDeliveryPackage(
+                    runtime.foregroundPackage.ifBlank { runtime.lastDetectedPackage }
+                )
             if (allowExpand) {
                 applyExpandedState(expanded = true, updateWindowLayout = true)
             }
         }
 
-        // 1. Active calculation state — clear old run metrics immediately
         if (runtime.isAnalyzing) {
             (overlayRoot?.background as? GradientDrawable)?.setStroke(dp(2), Color.parseColor("#38BDF8"))
             decisionDotView.background = circleDrawable(Color.parseColor("#38BDF8"))
             minimizedDotView.background = circleDrawable(Color.parseColor("#38BDF8"))
-            minimizedLabelView.text = "MOB LETS"
-            decisionTitleView.text = "ANALISANDO NOVA OFERTA..."
+            minimizedLabelView.text = "ROTA IA"
+            decisionTitleView.text = "CALCULANDO ROTA..."
             decisionTitleView.setTextColor(Color.parseColor("#38BDF8"))
-            rateMetricView.text = "Consultando cache / vias em Montes Claros"
+            rateMetricView.text = "Lendo oferta e bairros de Montes Claros"
             offerSummaryView.text = runtime.lastStatusMessage
-            routeBreakdownView.text = "Etapas: Atual → Loja → Cliente → Centro MOC"
+            routeBreakdownView.text = "Etapas: Atual → Loja → Cliente"
             alertBannerView.visibility = View.GONE
             return
         }
 
-        // 2. Unresolved address or calculation failure — never show fake km or stale offer
         if (!runtime.lastAnalysisError.isNullOrBlank()) {
             (overlayRoot?.background as? GradientDrawable)?.setStroke(dp(2), Color.parseColor("#F59E0B"))
             decisionDotView.background = circleDrawable(Color.parseColor("#F59E0B"))
             minimizedDotView.background = circleDrawable(Color.parseColor("#F59E0B"))
-            minimizedLabelView.text = "MOB LETS"
-            decisionTitleView.text = "ENDEREÇO NÃO LOCALIZADO"
+            minimizedLabelView.text = "ROTA IA"
+            decisionTitleView.text = "VERIFICAR DADOS DA OFERTA"
             decisionTitleView.setTextColor(Color.parseColor("#F59E0B"))
-            rateMetricView.text = "Sem cálculo falso • Confira no Painel"
+            rateMetricView.text = "Sem valor ou endereço completo na tela"
             offerSummaryView.text = runtime.lastAnalysisError
-            routeBreakdownView.text = "Nenhum km estimado artificialmente"
-            alertBannerView.visibility = View.VISIBLE
-            alertBannerView.text = ""
+            routeBreakdownView.text = "Toque em OCR Tela ou abra o Painel"
+            alertBannerView.visibility = View.GONE
             return
         }
 
@@ -553,87 +595,82 @@ class FloatingOverlayService : Service() {
             (overlayRoot?.background as? GradientDrawable)?.setStroke(dp(1), Color.parseColor("#334155"))
             decisionDotView.background = circleDrawable(Color.parseColor("#38BDF8"))
             minimizedDotView.background = circleDrawable(Color.parseColor("#38BDF8"))
-            minimizedLabelView.text = "MOB LETS"
-            decisionTitleView.text = "MONITORANDO MOB LETS"
+            minimizedLabelView.text = "ROTA IA"
+            decisionTitleView.text = "MONITORANDO ENTREGAS"
             decisionTitleView.setTextColor(Color.WHITE)
-            rateMetricView.text = if (runtime.isAccessibilityConnected) {
-                "Acessibilidade ON • Meta R$ 1,90/km"
-            } else {
-                "Ative Acessibilidade ou teste no Painel"
-            }
+            rateMetricView.text = String.format(Locale("pt", "BR"), "Meta: R$ %.2f/km", currentSettings.minTargetPerKm)
             offerSummaryView.text = runtime.lastStatusMessage
-            routeBreakdownView.text = "Rota padrão: Você → Loja → Cliente → Centro MOC"
+            routeBreakdownView.text = "Rota: Atual → Loja → Cliente"
             alertBannerView.visibility = View.GONE
             return
         }
 
-        val (dotColor, titleLabel, borderHex) = when (offer.decision) {
-            TrafficLightDecision.GREEN.name -> Triple(
-                Color.parseColor("#10B981"),
-                "VERDE • COMPENSA",
-                "#10B981"
-            )
-            TrafficLightDecision.YELLOW.name -> Triple(
-                Color.parseColor("#F59E0B"),
-                "AMARELO • ATENÇÃO",
-                "#F59E0B"
-            )
-            else -> Triple(
-                Color.parseColor("#EF4444"),
-                "VERMELHO • NÃO COMPENSA",
-                "#EF4444"
-            )
+        val (dotColor, emojiLabel, borderHex) = when (offer.decision) {
+            TrafficLightDecision.GREEN.name -> Triple(Color.parseColor("#10B981"), "🟢 COMPENSA", "#10B981")
+            TrafficLightDecision.YELLOW.name -> Triple(Color.parseColor("#F59E0B"), "🟡 ATENÇÃO", "#F59E0B")
+            else -> Triple(Color.parseColor("#EF4444"), "🔴 NÃO COMPENSA", "#EF4444")
         }
 
         (overlayRoot?.background as? GradientDrawable)?.setStroke(dp(2), Color.parseColor(borderHex))
         decisionDotView.background = circleDrawable(dotColor)
         minimizedDotView.background = circleDrawable(dotColor)
-        minimizedLabelView.text = "MOB LETS"
-        decisionTitleView.text = titleLabel
-        decisionTitleView.setTextColor(dotColor)
+        minimizedLabelView.text = "ROTA IA"
 
         val ptBr = Locale("pt", "BR")
-        val priceTxt = String.format(ptBr, "R$ %.2f", offer.offerPriceBrl)
-        val rateTxt = String.format(ptBr, "R$ %.2f/km", offer.earningsPerKm)
-        val totalKmTxt = String.format(ptBr, "%.1f km", offer.totalKm)
+        decisionTitleView.text = String.format(
+            ptBr,
+            "R$ %.2f • %.2f km • R$ %.2f/km",
+            offer.offerPriceBrl,
+            offer.totalKm,
+            offer.earningsPerKm
+        )
+        decisionTitleView.setTextColor(dotColor)
+        rateMetricView.text = String.format(ptBr, "%s • Meta R$ %.2f/km", emojiLabel, currentSettings.minTargetPerKm)
 
-        val emoji = when (offer.decision) {
-            TrafficLightDecision.GREEN.name -> "🟢 COMPENSA"
-            TrafficLightDecision.YELLOW.name -> "🟡 ATENÇÃO"
-            else -> "🔴 NÃO COMPENSA"
+        val storeText = offer.storeName.ifBlank { "Não informada" }
+        val pickupNb = if (MontesClarosGeoCatalog.isUnidentified(offer.pickupNeighborhood)) {
+            "Montes Claros"
+        } else {
+            offer.pickupNeighborhood
         }
+        val pickupAddrClean = offer.pickupAddress.ifBlank { "Endereço não informado" }
 
-        rateMetricView.text = "$emoji • $rateTxt"
-        decisionTitleView.text = String.format(ptBr, "Valor: R$ %.2f • Total: %.1f km", offer.offerPriceBrl, offer.totalKm)
-
-        val storeText = if (offer.storeName.isNotBlank()) offer.storeName else "Montes Claros"
-        val pickupNb = if (MontesClarosGeoCatalog.isUnidentified(offer.pickupNeighborhood)) "Montes Claros" else offer.pickupNeighborhood
-        val pickupText = if (offer.pickupAddress.isNotBlank()) "Retirada: $pickupNb (${offer.pickupAddress})" else "Retirada: $pickupNb"
-        val customerNb = if (MontesClarosGeoCatalog.isUnidentified(offer.customerNeighborhood)) "Montes Claros" else offer.customerNeighborhood
-        val customerText = if (offer.customerAddress.isNotBlank()) "Entrega: $customerNb (${offer.customerAddress})" else "Entrega: $customerNb"
+        val customerNb = if (MontesClarosGeoCatalog.isUnidentified(offer.customerNeighborhood)) {
+            "Montes Claros"
+        } else {
+            offer.customerNeighborhood
+        }
+        val customerAddrClean = offer.customerAddress.ifBlank { "Endereço não informado" }
 
         offerSummaryView.text = buildString {
             appendLine("Loja: $storeText")
-            appendLine(pickupText)
-            append(customerText)
+            appendLine("Retirada ($pickupNb): $pickupAddrClean")
+            append("Entrega ($customerNb): $customerAddrClean")
         }
 
-        val returnKm = if (offer.leg3CustomerToCenterKm > 0) offer.leg3CustomerToCenterKm else 0.0
         routeBreakdownView.text = String.format(
             ptBr,
-            "Loja %.1f km • Corrida %.1f km • Volta %.1f km",
+            "Loja %.2f km • Corrida %.2f km • Volta %.2f km",
             offer.leg1CurrentToPickupKm,
             offer.leg2PickupToCustomerKm,
-            returnKm
+            offer.leg3CustomerToCenterKm
         )
 
-        alertBannerView.visibility = View.GONE
+        if (!offer.neighborhoodAlert.isNullOrBlank()) {
+            alertBannerView.visibility = View.VISIBLE
+            alertBannerView.text = "⚠ ${offer.neighborhoodAlert}"
+        } else {
+            alertBannerView.visibility = View.GONE
+        }
     }
 
     private fun circleDrawable(color: Int): GradientDrawable = GradientDrawable().apply {
         shape = GradientDrawable.OVAL
         setColor(color)
     }
+
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density).toInt()
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -644,8 +681,7 @@ class FloatingOverlayService : Service() {
             ).apply {
                 description = getString(R.string.overlay_notification_channel_desc)
             }
-            val nm = getSystemService(NotificationManager::class.java)
-            nm.createNotificationChannel(channel)
+            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
     }
 
@@ -669,7 +705,7 @@ class FloatingOverlayService : Service() {
             .setContentText(getString(R.string.overlay_notification_text))
             .setOngoing(true)
             .setContentIntent(openIntent)
-            .addAction(0, "Parar Overlay", stopIntent)
+            .addAction(0, "Desligar", stopIntent)
             .build()
     }
 
@@ -677,9 +713,10 @@ class FloatingOverlayService : Service() {
         return TextView(this).apply {
             text = valueStr
             setTextColor(Color.WHITE)
-            textSize = 10f
+            textSize = 9.5f
             typeface = Typeface.DEFAULT_BOLD
-            setPadding(dp(5), dp(3), dp(5), dp(3))
+            maxLines = 1
+            setPadding(dp(4), dp(3), dp(4), dp(3))
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#1E293B"))
                 cornerRadius = dp(8).toFloat()
@@ -715,14 +752,15 @@ class FloatingOverlayService : Service() {
                     pickupNeighborhoodHint = latest.pickupNeighborhood,
                     customerNeighborhoodHint = latest.customerNeighborhood
                 )
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
         }
     }
 
     private fun showGoalEditDialog() {
         try {
             val builder = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            builder.setTitle("Definir Meta Mínima (R$/km)")
+            builder.setTitle("Meta Mínima (R$/km)")
             val input = EditText(this).apply {
                 inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
                 setText(String.format(Locale("pt", "BR"), "%.2f", currentSettings.minTargetPerKm).replace('.', ','))
@@ -741,38 +779,14 @@ class FloatingOverlayService : Service() {
             }
             builder.setNegativeButton("Cancelar", null)
             val dialog = builder.create()
-            dialog.window?.setType(
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                else
-                    WindowManager.LayoutParams.TYPE_PHONE
-            )
-            dialog.show()
-        } catch (_: Exception) {}
-    }
-
-    private fun dp(value: Int): Int =
-        (value * resources.displayMetrics.density).toInt()
-
-    override fun onDestroy() {
-        super.onDestroy()
-        serviceScope.cancel()
-        overlayRoot?.let { view ->
-            try {
-                windowManager?.removeView(view)
-            } catch (_: Exception) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                dialog.window?.setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
+            } else {
+                @Suppress("DEPRECATION")
+                dialog.window?.setType(WindowManager.LayoutParams.TYPE_PHONE)
             }
+            dialog.show()
+        } catch (_: Exception) {
         }
-        overlayRoot = null
-        ServiceRuntimeBus.setOverlayServiceRunning(false)
-    }
-
-    override fun onBind(intent: Intent?): IBinder? = null
-
-    companion object {
-        const val CHANNEL_ID = "rota_overlay_channel"
-        const val NOTIFICATION_ID = 4102
-        const val ACTION_SHOW_OR_UPDATE = "com.example.action.SHOW_OR_UPDATE_OVERLAY"
-        const val ACTION_STOP = "com.example.action.STOP_OVERLAY"
     }
 }
