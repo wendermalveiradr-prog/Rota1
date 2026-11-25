@@ -22,6 +22,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -157,70 +159,50 @@ class RouteCalculator(
 
         val pickupPoint = MontesClarosGeoCatalog.resolveCoordinatesFromCatalog(pickupAddress)
         val customerPoint = MontesClarosGeoCatalog.resolveCoordinatesFromCatalog(customerAddress)
+        val urbanFactor = 1.32
+
         val hasScreenKm = screenTotalKmHint != null && screenTotalKmHint.isFinite() && screenTotalKmHint > 0.2
-        val hasPickupDist = pickupDistanceHintKm != null && pickupDistanceHintKm.isFinite() && pickupDistanceHintKm > 0.05
+        val hasPickupDist = pickupDistanceHintKm != null && pickupDistanceHintKm.isFinite() && pickupDistanceHintKm > 0.02
 
-        if (pickupPoint != null && customerPoint != null) {
-            val urbanFactor = 1.32
-            val l1 = if (hasPickupDist) {
-                round2(pickupDistanceHintKm!!)
-            } else {
-                round2((haversineKm(validStart, pickupPoint) * urbanFactor).coerceAtLeast(0.20))
-            }
-            val catalogL2 = round2((haversineKm(pickupPoint, customerPoint) * urbanFactor).coerceAtLeast(0.30))
-            val l2 = if (hasScreenKm) {
-                round2(screenTotalKmHint!!)
-            } else {
-                catalogL2
-            }
-            val l3 = if (countReturn) {
-                round2((haversineKm(customerPoint, validStart) * urbanFactor).coerceAtLeast(0.20))
-            } else {
-                0.0
-            }
-            val total = round2(l1 + l2 + l3)
-            return RouteCalculationResult(
-                leg1CurrentToPickupKm = l1,
-                leg2PickupToCustomerKm = l2,
-                leg3CustomerToCenterKm = l3,
-                totalKm = total,
-                routeSource = ROUTE_SOURCE_INSTANT_OFFLINE,
-                fromCache = false,
-                pickupPoint = pickupPoint,
-                customerPoint = customerPoint
-            )
+        val l1 = if (hasPickupDist) {
+            round2(pickupDistanceHintKm!!)
+        } else if (pickupPoint != null) {
+            round2((haversineKm(validStart, pickupPoint) * urbanFactor).coerceAtLeast(0.30))
+        } else {
+            1.20
         }
 
-        if (hasScreenKm) {
-            val l2 = round2(screenTotalKmHint!!)
-            val urbanFactor = 1.32
-            val l1 = when {
-                hasPickupDist -> round2(pickupDistanceHintKm!!)
-                pickupPoint != null -> round2((haversineKm(validStart, pickupPoint) * urbanFactor).coerceAtLeast(0.20))
-                else -> round2(1.50)
-            }
-            val l3 = if (countReturn) {
-                when {
-                    customerPoint != null -> round2((haversineKm(customerPoint, validStart) * urbanFactor).coerceAtLeast(0.20))
-                    else -> round2(2.00)
-                }
-            } else {
-                0.0
-            }
-            val total = round2(l1 + l2 + l3)
-            return RouteCalculationResult(
-                leg1CurrentToPickupKm = l1,
-                leg2PickupToCustomerKm = l2,
-                leg3CustomerToCenterKm = l3,
-                totalKm = total,
-                routeSource = ROUTE_SOURCE_INSTANT_OFFLINE,
-                fromCache = false,
-                pickupPoint = pickupPoint,
-                customerPoint = customerPoint
-            )
+        val catalogL2 = if (pickupPoint != null && customerPoint != null) {
+            round2((haversineKm(pickupPoint, customerPoint) * urbanFactor).coerceAtLeast(0.50))
+        } else {
+            3.50
         }
 
-        return null
+        val l2 = if (hasScreenKm) {
+            round2(screenTotalKmHint!!)
+        } else {
+            catalogL2
+        }
+
+        val l3 = if (countReturn) {
+            val destPoint = customerPoint ?: centerPoint
+            val returnTarget = pickupPoint ?: centerPoint
+            round2((haversineKm(destPoint, returnTarget) * urbanFactor).coerceAtLeast(0.50))
+        } else {
+            0.0
+        }
+
+        val total = round2(l1 + l2 + l3)
+        return RouteCalculationResult(
+            leg1CurrentToPickupKm = l1,
+            leg2PickupToCustomerKm = l2,
+            leg3CustomerToCenterKm = l3,
+            totalKm = total,
+            routeSource = ROUTE_SOURCE_INSTANT_OFFLINE,
+            fromCache = false,
+            pickupPoint = pickupPoint,
+            customerPoint = customerPoint
+        )
     }
 
     suspend fun calculateCompleteRoute(

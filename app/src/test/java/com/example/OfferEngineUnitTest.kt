@@ -581,20 +581,20 @@ class OfferEngineUnitTest {
 
     @Test
     fun `service runtime bus auto minimizes overlay outside Mob Lets and expands on Mob Lets foreground`() {
-        ServiceRuntimeBus.onForegroundAppChanged("com.moblets.driver", isMobLets = true)
+        ServiceRuntimeBus.onForegroundAppChanged("com.moblets.driver", isTargetApp = true)
         val initialMinimize = ServiceRuntimeBus.state.value.minimizeNonce
         val initialExpand = ServiceRuntimeBus.state.value.expandNonce
-        assertTrue(ServiceRuntimeBus.state.value.isForegroundMobLets)
+        assertTrue(ServiceRuntimeBus.state.value.isForegroundTargetApp)
 
         // Opening Rota Inteligente IA (or any other non-Mob Lets app) triggers auto-minimize
-        ServiceRuntimeBus.onForegroundAppChanged("com.example", isMobLets = false)
-        assertFalse(ServiceRuntimeBus.state.value.isForegroundMobLets)
+        ServiceRuntimeBus.onForegroundAppChanged("com.example", isTargetApp = false)
+        assertFalse(ServiceRuntimeBus.state.value.isForegroundTargetApp)
         assertEquals(initialMinimize + 1L, ServiceRuntimeBus.state.value.minimizeNonce)
         assertEquals(initialExpand, ServiceRuntimeBus.state.value.expandNonce)
 
         // Returning to Mob Lets triggers auto-expand
-        ServiceRuntimeBus.onForegroundAppChanged("com.moblets.driver", isMobLets = true)
-        assertTrue(ServiceRuntimeBus.state.value.isForegroundMobLets)
+        ServiceRuntimeBus.onForegroundAppChanged("com.moblets.driver", isTargetApp = true)
+        assertTrue(ServiceRuntimeBus.state.value.isForegroundTargetApp)
         assertEquals(initialExpand + 1L, ServiceRuntimeBus.state.value.expandNonce)
     }
 }

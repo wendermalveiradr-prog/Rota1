@@ -85,7 +85,7 @@ object OfferParser {
         RegexOption.IGNORE_CASE
     )
     private val standaloneCurrencyRegex = Regex("""R\$\s*(\d+[.,]\d{2})""", RegexOption.IGNORE_CASE)
-    private val parenthesizedKmRegex = Regex("""\((\d+(?:[.,]\d+)?)\s*km\)""", RegexOption.IGNORE_CASE)
+    private val parenthesizedKmRegex = Regex("""\((\d+(?:[.,]\d+)?)\s*(km|m)\)""", RegexOption.IGNORE_CASE)
     private val anyKmRegex = Regex("""(\d+(?:[.,]\d+)?)\s*km\b""", RegexOption.IGNORE_CASE)
 
     // Generic structural markers for store/establishment (never hardcoded store brand lists)
@@ -253,262 +253,112 @@ object OfferParser {
         var pickupNeighborhoodHint = ""
         var customerNeighborhoodHint = ""
 
-        var currentSection = BlockSection.HEADER
-        var firstPickupLineIndex = -1
-        val headerCandidatesBeforePickup = mutableListOf<String>()
-
         val paymentNoiseTerms = setOf(
             "carteira de creditos", "carteira de créditos", "faturado", "dinheiro", "pix",
             "cartao", "cartão", "credito", "crédito", "debito", "débito", "pagamento"
         )
 
-        for (i in cleanLines.indices) {
-            val rawLine = cleanLines[i]
+        val deliveryStopMarkers = listOf("1º parada", "1ª parada", "1a parada", "primeira parada", "parada 1")
+        val deliveryStopIdx = cleanLines.indexOfFirst { line ->
+            val l = line.lowercase()
+            deliveryStopMarkers.any { l.contains(it) }
+        }
+
+        val returnMarkers = listOf("retorno", "ponto de retorno")
+        val returnIdx = cleanLines.indexOfFirst { line ->
+            val l = line.lowercase()
+            returnMarkers.any { l.contains(it) }
+        }
+
+        val pickupLines = if (deliveryStopIdx >= 0) {
+            cleanLines.take(deliveryStopIdx)
+        } else {
+            cleanLines.take(kotlin.math.min(cleanLines.size, 4))
+        }
+
+        val customerLines = if (deliveryStopIdx >= 0) {
+            val endIdx = if (returnIdx > deliveryStopIdx) returnIdx else cleanLines.size
+            cleanLines.subList(deliveryStopIdx + 1, endIdx)
+        } else {
+            cleanLines.drop(kotlin.math.min(cleanLines.size, 4))
+        }
+
+        // Process pickup & store lines (above 1º parada)
+        for (rawLine in pickupLines) {
             val line = stripParenthesizedDistance(rawLine)
             if (line.isBlank()) continue
-
             val lowerLine = line.lowercase()
+
             if (paymentNoiseTerms.any { lowerLine.contains(it) } || lowerLine.startsWith("os ") || lowerLine.startsWith("pedido")) {
-                continue
-            }
-            if (lowerLine.startsWith("retorno") || lowerLine.contains("ponto de retorno")) {
-                currentSection = BlockSection.RETURN
-                continue
-            }
-            if (currentSection == BlockSection.RETURN) {
-                continue
-            }
-
-            if (isUiScreenHeaderLine(line) || isUiFooterCtaLine(line)) {
-                currentSection = BlockSection.HEADER
-                continue
-            }
-
-            if (looksLikePrice(line) && !isAnySectionMarker(line)) {
-                continue
-            }
-
-            when {
-                isStoreMarkerLine(line) -> {
-                    currentSection = BlockSection.STORE
-                    if (firstPickupLineIndex == -1) firstPickupLineIndex = i
-                    val value = extractValueAfterMarker(line, storeMarkerRegexes)
-                    if (!value.isNullOrBlank() && !isUninformedPlaceholder(value)) {
-                        val (storePart, addressPart) = splitStoreAndAddress(value)
-                        if (storePart.isNotBlank() && detectedStoreName.isBlank()) {
-                            detectedStoreName = storePart
-                            storeFromExplicitMarker = true
-                        } else if (addressPart.isBlank() && isPlausibleStoreName(value) && detectedStoreName.isBlank()) {
-                            detectedStoreName = value
-                            storeFromExplicitMarker = true
-                        }
-                        if (addressPart.isNotBlank()) {
-                            pickupParts.add(addressPart)
-                            pickupFromExplicitSection = true
-                            currentSection = BlockSection.PICKUP
-                        } else if (looksLikeAddressLine(value)) {
-                            pickupParts.add(value)
-                            pickupFromExplicitSection = true
-                            currentSection = BlockSection.PICKUP
-                        }
+                val parenMatch = Regex("""\(([^)]+)\)""").find(line)
+                if (parenMatch != null) {
+                    val inner = parenMatch.groupValues[1].trim()
+                    if (isPlausibleStoreName(inner) && detectedStoreName.isBlank()) {
+                        detectedStoreName = inner
+                        storeFromExplicitMarker = true
                     }
                 }
+                continue
+            }
 
-                isPickupMarkerLine(line) -> {
-                    currentSection = BlockSection.PICKUP
-                    pickupFromExplicitSection = true
-                    if (firstPickupLineIndex == -1) firstPickupLineIndex = i
-                    val value = extractValueAfterMarker(line, inlinePickupMarkerRegexes)
-                    if (!value.isNullOrBlank() && !isUninformedPlaceholder(value)) {
-                        extractExplicitNeighborhood(value)?.let { hint ->
-                            if (pickupNeighborhoodHint.isBlank()) pickupNeighborhoodHint = hint
-                        }
-                        val (storePart, addressPart) = splitStoreAndAddress(value)
-                        if (storePart.isNotBlank() && detectedStoreName.isBlank()) {
-                            detectedStoreName = storePart
-                            storeFromExplicitMarker = true
-                        }
-                        if (addressPart.isNotBlank()) {
-                            pickupParts.add(addressPart)
-                        } else if (looksLikeAddressLine(value) || MontesClarosGeoCatalog.isPureNeighborhoodOrCity(value)) {
-                            pickupParts.add(value)
-                        } else if (isPlausibleStoreName(value) && detectedStoreName.isBlank()) {
-                            detectedStoreName = value
-                            storeFromExplicitMarker = false
-                        }
-                    }
+            if (isUiScreenHeaderLine(line) || isUiFooterCtaLine(line) || isDistanceOrMetaNoise(line) || looksLikePrice(line)) {
+                continue
+            }
+
+            val storeMatch = storeMarkerRegexes.firstNotNullOfOrNull { reg -> reg.find(line)?.range?.last }
+            if (storeMatch != null) {
+                val storeVal = line.substring(storeMatch + 1).trim(' ', ':', '-', '•')
+                if (storeVal.isNotBlank() && isPlausibleStoreName(storeVal) && detectedStoreName.isBlank()) {
+                    detectedStoreName = storeVal
+                    storeFromExplicitMarker = true
                 }
+            }
 
-                isCustomerMarkerLine(line) -> {
-                    currentSection = BlockSection.CUSTOMER
-                    customerFromExplicitSection = true
-                    val value = extractValueAfterMarker(line, inlineCustomerMarkerRegexes)
-                    if (!value.isNullOrBlank() && !isUninformedPlaceholder(value)) {
-                        extractExplicitNeighborhood(value)?.let { hint ->
-                            if (customerNeighborhoodHint.isBlank()) customerNeighborhoodHint = hint
-                        }
-                        if (looksLikeAddressLine(value) ||
-                            MontesClarosGeoCatalog.isPureNeighborhoodOrCity(value) ||
-                            hasMeaningfulAddressTokens(value)
-                        ) {
-                            customerParts.add(value)
-                        }
-                    }
+            val (storePart, addressPart) = splitStoreAndAddress(line)
+            if (storePart.isNotBlank() && detectedStoreName.isBlank() && isPlausibleStoreName(storePart)) {
+                detectedStoreName = storePart
+                storeFromExplicitMarker = true
+            }
+
+            val targetAddr = addressPart.ifBlank { line }
+            if (looksLikeAddressLine(targetAddr) && !detectedStoreName.equals(targetAddr, ignoreCase = true)) {
+                pickupParts.add(targetAddr)
+                pickupFromExplicitSection = true
+                extractExplicitNeighborhood(targetAddr)?.let { hint ->
+                    if (pickupNeighborhoodHint.isBlank()) pickupNeighborhoodHint = hint
                 }
+            } else if (isPlausibleStoreName(line) && detectedStoreName.isBlank()) {
+                detectedStoreName = line
+                storeFromExplicitMarker = true
+            }
+        }
 
-                else -> {
-                    if (isUninformedPlaceholder(line)) continue
+        // Process customer delivery lines (below 1º parada)
+        for (rawLine in customerLines) {
+            val line = stripParenthesizedDistance(rawLine)
+            if (line.isBlank()) continue
+            val lowerLine = line.lowercase()
 
-                    when (currentSection) {
-                        BlockSection.STORE -> {
-                            val (storePart, addressPart) = splitStoreAndAddress(line)
-                            if (storePart.isNotBlank() && detectedStoreName.isBlank()) {
-                                detectedStoreName = storePart
-                                storeFromExplicitMarker = true
-                            }
-                            if (addressPart.isNotBlank()) {
-                                pickupParts.add(addressPart)
-                                pickupFromExplicitSection = true
-                                currentSection = BlockSection.PICKUP
-                            } else if (looksLikeAddressLine(line)) {
-                                pickupParts.add(line)
-                                pickupFromExplicitSection = true
-                                currentSection = BlockSection.PICKUP
-                            } else if (isPlausibleStoreName(line) && detectedStoreName.isBlank()) {
-                                detectedStoreName = line
-                                storeFromExplicitMarker = true
-                            }
-                        }
+            if (paymentNoiseTerms.any { lowerLine.contains(it) } || lowerLine.startsWith("os ") || isUiFooterCtaLine(line) || isDistanceOrMetaNoise(line) || looksLikePrice(line)) {
+                continue
+            }
 
-                        BlockSection.PICKUP -> {
-                            if (isDistanceOrMetaNoise(line)) continue
-
-                            val explicitBairro = extractExplicitNeighborhood(line)
-                            if (explicitBairro != null && pickupNeighborhoodHint.isBlank()) {
-                                pickupNeighborhoodHint = explicitBairro
-                            }
-
-                            val (storePart, addressPart) = splitStoreAndAddress(line)
-                            if (storePart.isNotBlank() && detectedStoreName.isBlank() && pickupParts.isEmpty()) {
-                                detectedStoreName = storePart
-                            }
-                            if (addressPart.isNotBlank()) {
-                                pickupParts.add(addressPart)
-                            } else if (pickupParts.isEmpty() && isPlausibleStoreName(line) && detectedStoreName.isBlank()) {
-                                detectedStoreName = line
-                            } else if (looksLikeAddressContinuation(line, pickupParts.isNotEmpty())) {
-                                pickupParts.add(line)
-                            }
-                        }
-
-                        BlockSection.CUSTOMER -> {
-                            if (isDistanceOrMetaNoise(line)) continue
-
-                            val explicitBairro = extractExplicitNeighborhood(line)
-                            if (explicitBairro != null && customerNeighborhoodHint.isBlank()) {
-                                customerNeighborhoodHint = explicitBairro
-                            }
-
-                            if (looksLikeAddressContinuation(line, customerParts.isNotEmpty())) {
-                                customerParts.add(line)
-                            }
-                        }
-
-                        BlockSection.RETURN -> continue
-                        BlockSection.HEADER -> {
-                        val rawStoreMatch = Regex("""^(.+?)\s*-\s*\(\s*\d+(?:[.,]\d+)?\s*(?:km|m)\s*\)$""", RegexOption.IGNORE_CASE).find(rawLine.trim())
-                        if (rawStoreMatch != null) {
-                            val cleanStore = rawStoreMatch.groupValues[1].trim()
-                            if (cleanStore.isNotBlank() && !cleanStore.lowercase().contains("carteira") && !cleanStore.lowercase().contains("faturado")) {
-                                detectedStoreName = cleanStore
-                                currentSection = BlockSection.PICKUP
-                            }
-                        } else if (looksLikeAddressLine(line) && !line.lowercase().contains("carteira") && !line.lowercase().contains("faturado")) {
-                            pickupParts.add(line)
-                            pickupFromExplicitSection = true
-                            currentSection = BlockSection.PICKUP
-                        } else if (!isDistanceOrMetaNoise(line) &&
-                            !MontesClarosGeoCatalog.isPureNeighborhoodOrCity(line) &&
-                            !line.lowercase().contains("carteira") &&
-                            !line.lowercase().contains("faturado") &&
-                            !line.lowercase().startsWith("os ")
-                        ) {
-                            headerCandidatesBeforePickup.add(line)
-                        }
-                    }
-                    }
+            if (looksLikeAddressLine(line) || hasMeaningfulAddressTokens(line)) {
+                customerParts.add(line)
+                customerFromExplicitSection = true
+                extractExplicitNeighborhood(line)?.let { hint ->
+                    if (customerNeighborhoodHint.isBlank()) customerNeighborhoodHint = hint
                 }
             }
         }
 
         var pickupAddress = joinAddressParts(pickupParts)
         var customerAddress = joinAddressParts(customerParts)
-        var pickupFromContextFallback = false
-        var customerFromContextFallback = false
+        val pickupFromContextFallback = false
+        val customerFromContextFallback = false
 
-        // Dynamic contextual fallback if offer had unlabeled street lines (strictly respecting section boundaries)
-        if (pickupAddress.isBlank() || customerAddress.isBlank()) {
-            val streetCandidates = cleanLines
-                .map { stripParenthesizedDistance(it) }
-                .filterIndexed { idx, line ->
-                    line.isNotBlank() &&
-                        !isAnySectionMarker(line) &&
-                        fullStreetWithContentRegex.containsMatchIn(line) &&
-                        !looksLikePrice(line) &&
-                        !isDistanceOrMetaNoise(line) &&
-                        line != pickupAddress &&
-                        line != customerAddress &&
-                        !pickupParts.contains(line) &&
-                        !customerParts.contains(line) &&
-                        (idx != firstPickupLineIndex || pickupAddress.isBlank())
-                }
-            if (pickupAddress.isBlank() && !pickupFromExplicitSection && streetCandidates.isNotEmpty()) {
-                val candidate = streetCandidates.first()
-                val (storePart, addrPart) = splitStoreAndAddress(candidate)
-                if (storePart.isNotBlank() && detectedStoreName.isBlank()) {
-                    detectedStoreName = storePart
-                }
-                val resolvedPickup = addrPart.ifBlank { candidate }
-                if (resolvedPickup != customerAddress && !customerParts.contains(resolvedPickup)) {
-                    pickupAddress = resolvedPickup
-                    pickupFromContextFallback = true
-                    if (firstPickupLineIndex == -1) {
-                        firstPickupLineIndex = cleanLines.indexOfFirst { stripParenthesizedDistance(it) == candidate }
-                    }
-                }
-            }
-            if (customerAddress.isBlank() && !customerFromExplicitSection) {
-                val customerCand = streetCandidates.firstOrNull { cand ->
-                    cand != pickupAddress &&
-                        !pickupAddress.contains(cand, ignoreCase = true) &&
-                        !pickupParts.contains(cand)
-                }
-                if (!customerCand.isNullOrBlank()) {
-                    customerAddress = customerCand
-                    customerFromContextFallback = true
-                }
-            }
-        }
-
-        // Dynamic contextual store detection: inspect commercial lines positioned right before pickup
-        if (detectedStoreName.isBlank() && pickupAddress.isNotBlank()) {
-            val cutoffIdx = if (firstPickupLineIndex > 0) firstPickupLineIndex else cleanLines.size
-            val candidateWindow = cleanLines.take(cutoffIdx)
-                .map { stripParenthesizedDistance(it) }
-                .filter { line ->
-                    line.isNotBlank() &&
-                        !isAnySectionMarker(line) &&
-                        !looksLikePrice(line) &&
-                        !isDistanceOrMetaNoise(line) &&
-                        !looksLikeAddressLine(line) &&
-                        !MontesClarosGeoCatalog.isPureNeighborhoodOrCity(line) &&
-                        line != pickupAddress &&
-                        line != customerAddress &&
-                        isPlausibleStoreName(line)
-                }
-            detectedStoreName = candidateWindow.lastOrNull()
-                ?: headerCandidatesBeforePickup.lastOrNull { isPlausibleStoreName(it) }
-                ?: fallbackStoreName?.takeIf { isPlausibleStoreName(it) }
+        if (detectedStoreName.isBlank()) {
+            detectedStoreName = fallbackStoreName?.takeIf { isPlausibleStoreName(it) }
                 ?: cachedMetrics?.storeNameHint?.takeIf { isPlausibleStoreName(it) }
                 ?: ""
         }
@@ -596,8 +446,11 @@ object OfferParser {
 
     private fun extractParenthesizedPickupKm(text: String): Double? {
         val match = parenthesizedKmRegex.find(text) ?: return null
-        return match.groupValues.getOrNull(1)?.replace(",", ".")?.toDoubleOrNull()
-            ?.takeIf { it > 0.0 && it < 100.0 }
+        val numStr = match.groupValues.getOrNull(1)?.replace(",", ".") ?: return null
+        val unit = match.groupValues.getOrNull(2)?.lowercase() ?: "km"
+        val value = numStr.toDoubleOrNull() ?: return null
+        val km = if (unit == "m") value / 1000.0 else value
+        return km.takeIf { it > 0.0 && it < 100.0 }
     }
 
     private fun extractScreenTotalKm(text: String): Double? {

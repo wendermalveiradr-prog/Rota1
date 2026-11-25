@@ -113,6 +113,7 @@ object ServiceRuntimeBus {
             current.copy(
                 activeRunId = runId,
                 isAnalyzing = true,
+                latestOffer = null,
                 lastAnalysisError = null,
                 lastDetectedPackage = detectedPackage.ifBlank { current.lastDetectedPackage },
                 lastStatusMessage = message

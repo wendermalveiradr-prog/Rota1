@@ -155,8 +155,7 @@ object MontesClarosGeoCatalog {
         KnownNeighborhood("Cidade Santa Maria", -16.6950, -43.8520, NeighborhoodStatus.NEUTRAL, "Região norte"),
         KnownNeighborhood("Antônio Pimenta", -16.7230, -43.8550, NeighborhoodStatus.NEUTRAL, "Região centro-leste"),
         KnownNeighborhood("Canelas II", -16.7550, -43.8650, NeighborhoodStatus.NEUTRAL, "Região sul"),
-        KnownNeighborhood("Village do Lago II", -16.6890, -43.8420, NeighborhoodStatus.AVOIDED, "Região norte"),
-        KnownNeighborhood("Village do Lago III", -16.6870, -43.8430, NeighborhoodStatus.AVOIDED, "Região norte"),
+
         KnownNeighborhood("Parque Cecap", -16.7110, -43.8510, NeighborhoodStatus.NEUTRAL, "Região norte"),
         KnownNeighborhood("Chiquinho Guimarães", -16.7140, -43.8540, NeighborhoodStatus.NEUTRAL, "Região norte"),
         KnownNeighborhood("Vila Telma", -16.7180, -43.8480, NeighborhoodStatus.NEUTRAL, "Região leste"),
@@ -206,11 +205,11 @@ object MontesClarosGeoCatalog {
         "conjunto clarice athayde" to "Clarice Athayde",
         "village lago" to "Village do Lago",
         "village do lago i" to "Village do Lago",
-        "village do lago ii" to "Village do Lago II",
-        "village do lago iii" to "Village do Lago III",
+        "village do lago ii" to "Village do Lago",
+        "village do lago iii" to "Village do Lago",
         "village do lago 1" to "Village do Lago",
-        "village do lago 2" to "Village do Lago II",
-        "village do lago 3" to "Village do Lago III",
+        "village do lago 2" to "Village do Lago",
+        "village do lago 3" to "Village do Lago",
         "delfino" to "Delfino Magalhães",
         "sao judas" to "São Judas Tadeu",
         "vila joao gordo" to "João Gordo",
@@ -312,11 +311,19 @@ object MontesClarosGeoCatalog {
             .trim(' ', ',', '-', '.', ';')
             .replace(Regex("\\s+"), " ")
 
-        if (afterLastDash.length in 3..40 &&
-            !afterLastDash.all { it.isDigit() } &&
-            !isCityOrNoiseOnly(normalize(afterLastDash)) &&
-            !streetPrefixRegex.matches(normalize(afterLastDash))
+        val normAfter = normalize(afterLastDash)
+        if (normAfter.isBlank() || isCityOrNoiseOnly(normAfter) || streetPrefixRegex.matches(normAfter)) {
+            return null
+        }
+        if (normAfter.startsWith("loja ") || normAfter.startsWith("restaurante ") ||
+            normAfter.startsWith("lanchonete ") || normAfter.startsWith("bar ") ||
+            normAfter.startsWith("mercado ") || normAfter.startsWith("farmacia ") ||
+            normAfter.startsWith("pizzaria ") || normAfter.contains("loja ")
         ) {
+            return null
+        }
+
+        if (afterLastDash.length in 3..40 && !afterLastDash.all { it.isDigit() }) {
             return afterLastDash.split(" ").joinToString(" ") { word ->
                 if (word.length <= 2 && word.lowercase() !in setOf("do", "da", "dos", "das", "e")) word.lowercase()
                 else word.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale("pt", "BR")) else it.toString() }
@@ -333,23 +340,6 @@ object MontesClarosGeoCatalog {
         val sortedRules = rules
             .filter { it.normalizedKey.isNotBlank() }
             .sortedByDescending { it.normalizedKey.length }
-
-        // 0. Priority direct Mob Lets pattern rule (text after last '-')
-        if (address.isNotBlank()) {
-            extractMobLetsDirectNeighborhood(address)?.let { directNb ->
-                val normDirect = normalize(directNb)
-                val matchedRule = rules.firstOrNull { it.normalizedKey == normDirect || containsWordBoundary(normDirect, it.normalizedKey) }
-                    ?: knownNeighborhoods.firstOrNull { normalize(it.name) == normDirect }?.let { cat ->
-                        findRuleByCanonicalName(cat.name, rules)
-                    }
-                return NeighborhoodMatchResult(
-                    name = matchedRule?.name ?: directNb,
-                    confidence = NeighborhoodConfidence.HIGH,
-                    rule = matchedRule,
-                    sourceDetail = "Padrão Mob Lets (- Bairro)"
-                )
-            }
-        }
 
         // 1. Explicit normalized segments after " - " or explicit neighborhood markers (HIGH confidence)
         if (address.isNotBlank()) {
@@ -375,7 +365,6 @@ object MontesClarosGeoCatalog {
                         sourceDetail = "Sigla/variação de bairro"
                     )
                 }
-                // Fallback directly against catalog if caller passed partial rules
                 knownNeighborhoods
                     .sortedByDescending { normalize(it.name).length }
                     .firstOrNull { item ->
@@ -477,17 +466,20 @@ object MontesClarosGeoCatalog {
             }
         }
 
-        // 5. Remaining full text word-boundary rule match (MEDIUM confidence)
-        if (address.isNotBlank() && sortedRules.isNotEmpty()) {
-            val fallbackFull = normalize(stripNoiseFromAddress(address)).ifBlank { normalize(address) }
-            sortedRules.firstOrNull { rule ->
-                containsWordBoundary(fallbackFull, rule.normalizedKey)
-            }?.let { rule ->
+        // 5. Priority direct Mob Lets pattern rule (text after last '-')
+        if (address.isNotBlank()) {
+            extractMobLetsDirectNeighborhood(address)?.let { directNb ->
+                val normDirect = normalize(directNb)
+                val canonicalName = findAliasCatalogMatch(normDirect)?.name
+                    ?: knownNeighborhoods.firstOrNull { normalize(it.name) == normDirect }?.name
+                    ?: directNb
+                val matchedRule = rules.firstOrNull { it.normalizedKey == normalize(canonicalName) || containsWordBoundary(normalize(canonicalName), it.normalizedKey) }
+                    ?: findRuleByCanonicalName(canonicalName, rules)
                 return NeighborhoodMatchResult(
-                    name = rule.name,
-                    confidence = NeighborhoodConfidence.MEDIUM,
-                    rule = rule,
-                    sourceDetail = "Menção no endereço"
+                    name = matchedRule?.name ?: canonicalName,
+                    confidence = NeighborhoodConfidence.HIGH,
+                    rule = matchedRule,
+                    sourceDetail = "Padrão Mob Lets (- Bairro)"
                 )
             }
         }
@@ -512,24 +504,11 @@ object MontesClarosGeoCatalog {
             }
         }
 
-        // 7. Approximate region fallback instead of error/unidentified
-        val regionFallback = if (point != null && isWithinMontesClarosBounds(point.latitude, point.longitude)) {
-            when {
-                point.latitude < -16.74 -> "Região Sul"
-                point.latitude > -16.71 -> "Região Norte"
-                point.longitude < -43.87 -> "Região Oeste"
-                point.longitude > -43.85 -> "Região Leste"
-                else -> "Região Central"
-            }
-        } else {
-            "Montes Claros"
-        }
-
         return NeighborhoodMatchResult(
-            name = regionFallback,
-            confidence = NeighborhoodConfidence.MEDIUM,
+            name = UNIDENTIFIED_NEIGHBORHOOD,
+            confidence = NeighborhoodConfidence.UNIDENTIFIED,
             rule = null,
-            sourceDetail = "Região aproximada Montes Claros"
+            sourceDetail = "Não identificado"
         )
     }
 
