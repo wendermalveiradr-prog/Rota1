@@ -84,7 +84,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
             return
         }
 
-        if (pkg == "com.android.settings") {
+        if (pkg == "com.android.settings" || pkg.contains("launcher", ignoreCase = true) || pkg.contains("chrome") || pkg.contains("whatsapp")) {
             ServiceRuntimeBus.onForegroundAppChanged(pkg, isTargetApp = false)
             return
         }
@@ -198,7 +198,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
             try {
                 val settings = prefs.getSettingsOnce()
                 if (settings.strictMobLetsPackageFilter && !isMobLetsPackage) return@launch
-                if (settings.ocrFallbackEnabled && (isMobLetsPackage || extractedText.length < 35)) {
+                if (settings.ocrFallbackEnabled && isMobLetsPackage && extractedText.length < 35) {
                     lastOcrScanMs = System.currentTimeMillis()
                     triggerOcrFallbackScan(
                         detectedPackage = pkg,
@@ -214,7 +214,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
 
     private fun isMobLetsPackageName(pkg: String): Boolean {
         val rootText = try {
-            val root = rootInActiveWindow
+            val root = (windows?.firstOrNull { it.isActive && it.isFocused }?.root ?: rootInActiveWindow)
             val text = collectNodeText(root)
             try { root?.recycle() } catch (_: Exception) {}
             text
@@ -377,7 +377,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
 
     private fun collectWindowTextSafely(): String {
         val root = try {
-            rootInActiveWindow
+            (windows?.firstOrNull { it.isActive && it.isFocused }?.root ?: rootInActiveWindow)
         } catch (_: Exception) {
             null
         } ?: return ""
@@ -441,8 +441,8 @@ class MobLetsAccessibilityService : AccessibilityService() {
     }
 
     companion object {
-        private const val EVENT_SCAN_INTERVAL_MS = 80L
-        private const val OCR_SCAN_INTERVAL_MS = 3500L
+        private const val EVENT_SCAN_INTERVAL_MS = 850L
+        private const val OCR_SCAN_INTERVAL_MS = 5000L
         private const val OFFER_LEAVE_CONFIRMATION_MS = 2500L
     }
 }
