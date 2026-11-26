@@ -102,7 +102,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
 
         // Capture node text synchronously before node snapshots go stale
         val extractedText = collectWindowTextSafely()
-        if (extractedText.contains("Disp. (", ignoreCase = true) || extractedText.contains("Pend. (", ignoreCase = true)) return
+        if (extractedText.contains("Nenhuma entrega no momento", ignoreCase = true)) return
         val fingerprint = normalizeScreenFingerprint(pkg, extractedText)
         val sameVisualScreen = fingerprint.isNotBlank() && fingerprint == lastScreenFingerprint
 

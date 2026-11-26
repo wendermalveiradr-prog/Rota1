@@ -170,7 +170,7 @@ object OfferParser {
         val cleanLines = rawText.lines().map { it.replace(Regex("\\s+"), " ").trim() }.filter { it.isNotBlank() }
         if (cleanLines.isEmpty()) return null
         val joined = cleanLines.joinToString("\n")
-        if (joined.contains("Disp. (", ignoreCase = true) || joined.contains("Pend. (", ignoreCase = true)) return null
+        if (joined.contains("Nenhuma entrega no momento", ignoreCase = true)) return null
         val price = extractPrice(joined) ?: return null
         if (price <= 0.5 || price > 1500.0) return null
 
@@ -207,7 +207,7 @@ object OfferParser {
 
         if (cleanLines.isEmpty()) return null
         val joined = cleanLines.joinToString("\n")
-        if (joined.contains("Disp. (", ignoreCase = true) || joined.contains("Pend. (", ignoreCase = true)) return null
+        if (joined.contains("Nenhuma entrega no momento", ignoreCase = true)) return null
         val isDetailsScreen = isDetailsScreenText(joined)
 
         val directPrice = extractPrice(joined)
@@ -322,7 +322,7 @@ object OfferParser {
                 storeFromExplicitMarker = true
             }
 
-            val targetAddr = addressPart.ifBlank { line }
+            val targetAddr = addressPart.ifBlank { line }.replace(Regex("(?i)^coleta\\s*[:\\-]?\\s*"), "").trim()
             if (looksLikeAddressLine(targetAddr) && !detectedStoreName.equals(targetAddr, ignoreCase = true)) {
                 pickupParts.add(targetAddr)
                 pickupFromExplicitSection = true
@@ -457,6 +457,11 @@ object OfferParser {
 
     private fun extractScreenTotalKm(text: String): Double? {
         val withoutParenthesized = parenthesizedKmRegex.replace(text, " ")
+        val obsKmMatch = Regex("(?i)Obs:\\s*\\((\\d+(?:[.,]\\d+)?)\\s*km").find(text)
+        if (obsKmMatch != null) {
+            val v = obsKmMatch.groupValues.getOrNull(1)?.replace(",", ".")?.toDoubleOrNull()
+            if (v != null && v in 0.2..120.0) return v
+        }
         val candidates = anyKmRegex.findAll(withoutParenthesized)
             .mapNotNull { m ->
                 m.groupValues.getOrNull(1)?.replace(",", ".")?.toDoubleOrNull()
