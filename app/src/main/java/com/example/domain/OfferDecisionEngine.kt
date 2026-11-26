@@ -101,14 +101,18 @@ object OfferDecisionEngine {
         val avoidedDetails = buildList {
             if (customerAvoided) {
                 val note = customerRule.notes.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: ""
-                add("Destino evitado: ${customerRule.name}$note")
+                add("⚠️ EVITAR ENTREGA: ${customerRule.name}$note")
             }
             if (pickupAvoided && pickupRule.name != customerRule?.name) {
                 val note = pickupRule.notes.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: ""
-                add("Coleta evitada: ${pickupRule.name}$note")
+                add("⚠️ EVITAR COLETA: ${pickupRule.name}$note")
             }
         }
-        val neighborhoodAlert = avoidedDetails.joinToString(" • ").ifBlank { null }
+        val neighborhoodAlert = if (avoidedDetails.isNotEmpty()) {
+            avoidedDetails.joinToString(" • ")
+        } else {
+            "✅ BAIRRO ACEITAR ($customerLabel)"
+        }
 
         val unidentifiedSuffix = when {
             MontesClarosGeoCatalog.isUnidentified(customerLabel) &&
@@ -130,14 +134,17 @@ object OfferDecisionEngine {
         val comfortMargin = target * 1.18
         val isLongReturn = route.leg3CustomerToCenterKm > settings.cautionReturnThresholdKm
 
+        val bairroTag = if (customerAvoided || pickupAvoided) {
+            " • ${avoidedDetails.joinToString(" | ")}"
+        } else {
+            " • ✅ ACEITAR BAIRRO ($customerLabel)"
+        }
+
         val (decision, reason) = when {
-            customerAvoided || pickupAvoided -> {
-                TrafficLightDecision.RED to "VERMELHO • NÃO COMPENSA: ${neighborhoodAlert ?: "Bairro evitado/perigoso"}"
-            }
             earningsPerKm < target -> {
                 val formattedRate = formatBrl(earningsPerKm)
                 val formattedTarget = formatBrl(target)
-                TrafficLightDecision.RED to "VERMELHO • NÃO COMPENSA: $formattedRate/km abaixo da meta mínima de $formattedTarget/km$unidentifiedSuffix$routeSourceTag"
+                TrafficLightDecision.RED to "VERMELHO • NÃO COMPENSA: $formattedRate/km abaixo da meta mínima de $formattedTarget/km$bairroTag$unidentifiedSuffix$routeSourceTag"
             }
             earningsPerKm < comfortMargin && !customerPreferred -> {
                 val formattedRate = formatBrl(earningsPerKm)
@@ -149,7 +156,7 @@ object OfferDecisionEngine {
             else -> {
                 val formattedRate = formatBrl(earningsPerKm)
                 val bonusTag = if (customerPreferred) " • Bairro preferido ($customerLabel)" else ""
-                TrafficLightDecision.GREEN to "VERDE • COMPENSA: $formattedRate/km acima da meta$bonusTag$unidentifiedSuffix$routeSourceTag"
+                TrafficLightDecision.GREEN to "VERDE • COMPENSA: $formattedRate/km acima da meta$bairroTag$bonusTag$unidentifiedSuffix$routeSourceTag"
             }
         }
 

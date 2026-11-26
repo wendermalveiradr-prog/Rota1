@@ -89,7 +89,15 @@ class MobLetsAccessibilityService : AccessibilityService() {
             return
         }
 
-        ServiceRuntimeBus.onForegroundAppChanged(pkg, isTargetApp = isMobLetsPackage)
+        val isKnownDeliveryOrRideApp = isMobLetsPackage ||
+            pkg.contains("moblets", ignoreCase = true) ||
+            pkg.contains("mob.lets", ignoreCase = true) ||
+            pkg.contains("mob_lets", ignoreCase = true) ||
+            pkg.contains("ubercab.driver", ignoreCase = true) ||
+            pkg.contains("taxis99", ignoreCase = true) ||
+            pkg.contains("didiglobal.driver", ignoreCase = true) ||
+            pkg.contains("ninetynine", ignoreCase = true)
+        ServiceRuntimeBus.onForegroundAppChanged(pkg, isTargetApp = isKnownDeliveryOrRideApp)
 
         if (activeEventJob?.isActive == true) return
         val now = System.currentTimeMillis()
