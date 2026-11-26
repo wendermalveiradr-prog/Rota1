@@ -56,7 +56,7 @@ class FloatingOverlayService : Service() {
     private var windowManager: WindowManager? = null
     private var overlayRoot: LinearLayout? = null
     private var layoutParams: WindowManager.LayoutParams? = null
-    private var = true
+    private var isExpanded = false
     private var isStopping = false
     private var lastHandledMinimizeNonce = 0L
     private var lastHandledExpandNonce = 0L
@@ -114,10 +114,6 @@ class FloatingOverlayService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action != ACTION_STOP && com.example.domain.OfferAnalysisCoordinator.isOverlayManuallyDisabled) {
-            stopSelf()
-            return START_NOT_STICKY
-        }
         if (intent?.action != ACTION_STOP && com.example.domain.OfferAnalysisCoordinator.isOverlayManuallyDisabled) {
             stopSelf()
             return START_NOT_STICKY
