@@ -45,7 +45,8 @@ class MobLetsAccessibilityService : AccessibilityService() {
     private var lastScreenFingerprint = ""
 
     @Volatile
-    private var lastNonOfferScreenStartMs = 0L
+    private var lastOfferScreenVisibleMs = now
+            lastNonOfferScreenStartMs = 0L
 
     // Transient OS overlays / keyboards that should NOT trigger auto-minimize while inside Mob Lets
     private val transientSystemPackages = setOf(
@@ -89,7 +90,9 @@ class MobLetsAccessibilityService : AccessibilityService() {
             return
         }
 
+        val hasActiveOfferRecently = lastActiveOfferSignature.isNotBlank() || (now - lastOfferScreenVisibleMs) < 25_000L
         val isKnownDeliveryOrRideApp = isMobLetsPackage ||
+            hasActiveOfferRecently ||
             pkg.contains("moblets", ignoreCase = true) ||
             pkg.contains("mob.lets", ignoreCase = true) ||
             pkg.contains("mob_lets", ignoreCase = true) ||
@@ -132,6 +135,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
         )
 
         if (parsedFromAccessibility != null) {
+            lastOfferScreenVisibleMs = now
             lastOfferScreenVisibleMs = now
             lastNonOfferScreenStartMs = 0L
             lastScreenFingerprint = fingerprint
@@ -324,7 +328,8 @@ class MobLetsAccessibilityService : AccessibilityService() {
 
                                 lastActiveOfferSignature = signature
                                 lastOfferScreenVisibleMs = System.currentTimeMillis()
-                                lastNonOfferScreenStartMs = 0L
+                                lastOfferScreenVisibleMs = now
+            lastNonOfferScreenStartMs = 0L
 
                                 app.container.analysisCoordinator.analyzeStructuredOffer(
                                     priceBrl = parsed.offerPriceBrl,
