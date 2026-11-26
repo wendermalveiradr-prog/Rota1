@@ -134,14 +134,29 @@ object OfferDecisionEngine {
         val comfortMargin = target * 1.18
         val isLongReturn = route.leg3CustomerToCenterKm > settings.cautionReturnThresholdKm
 
-        val bairroTag = if (customerAvoided || pickupAvoided) {
-            " • ${avoidedDetails.joinToString(" | ")}"
-        } else {
-            " • ✅ ACEITAR BAIRRO ($customerLabel)"
-        }
+        val isBairroEvitado = customerAvoided || pickupAvoided
+        val isKmRuim = earningsPerKm < target
+        val formattedRate = formatBrl(earningsPerKm)
+        val formattedTarget = formatBrl(target)
 
         val (decision, reason) = when {
-            earningsPerKm < target -> {
+            isBairroEvitado && isKmRuim -> {
+                TrafficLightDecision.RED to "VERMELHO • NÃO COMPENSA: $formattedRate/km (abaixo de $formattedTarget/km) + ${avoidedDetails.joinToString(" | ")}"
+            }
+            isBairroEvitado -> {
+                TrafficLightDecision.RED to "VERMELHO • NÃO COMPENSA (BAIRRO EVITADO): ${avoidedDetails.joinToString(" | ")} • Valor: $formattedRate/km"
+            }
+            isKmRuim -> {
+                TrafficLightDecision.RED to "VERMELHO • NÃO COMPENSA: $formattedRate/km abaixo da meta de $formattedTarget/km • ✅ Bairro OK ($customerLabel)"
+            }
+            else -> {
+                val bonusTag = if (customerPreferred) " • ⭐ Bairro Preferido ($customerLabel)" else " • ✅ Bairro OK ($customerLabel)"
+                TrafficLightDecision.GREEN to "VERDE • COMPENSA: $formattedRate/km acima da meta$bonusTag"
+            }
+        }
+
+        val unusedOldWhen = when {
+            false -> {
                 val formattedRate = formatBrl(earningsPerKm)
                 val formattedTarget = formatBrl(target)
                 TrafficLightDecision.RED to "VERMELHO • NÃO COMPENSA: $formattedRate/km abaixo da meta mínima de $formattedTarget/km$bairroTag$unidentifiedSuffix$routeSourceTag"
