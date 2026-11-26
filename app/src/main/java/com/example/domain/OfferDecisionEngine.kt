@@ -159,7 +159,7 @@ object OfferDecisionEngine {
             false -> {
                 val formattedRate = formatBrl(earningsPerKm)
                 val formattedTarget = formatBrl(target)
-                TrafficLightDecision.RED to "VERMELHO • NÃO COMPENSA: $formattedRate/km abaixo da meta mínima de $formattedTarget/km$bairroTag$unidentifiedSuffix$routeSourceTag"
+                TrafficLightDecision.RED to "VERMELHO • NÃO COMPENSA: $formattedRate/km abaixo da meta mínima de $formattedTarget/km$unidentifiedSuffix$routeSourceTag"
             }
             earningsPerKm < comfortMargin && !customerPreferred -> {
                 val formattedRate = formatBrl(earningsPerKm)
@@ -171,7 +171,7 @@ object OfferDecisionEngine {
             else -> {
                 val formattedRate = formatBrl(earningsPerKm)
                 val bonusTag = if (customerPreferred) " • Bairro preferido ($customerLabel)" else ""
-                TrafficLightDecision.GREEN to "VERDE • COMPENSA: $formattedRate/km acima da meta$bairroTag$bonusTag$unidentifiedSuffix$routeSourceTag"
+                TrafficLightDecision.GREEN to "VERDE • COMPENSA: $formattedRate/km acima da meta$bonusTag$unidentifiedSuffix$routeSourceTag"
             }
         }
 
