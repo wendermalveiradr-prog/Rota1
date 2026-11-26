@@ -1,5 +1,4 @@
-
-import android.net.wifi.hotspot2.omadm.PpsMoParserPpsMoParserackage com.example.domain
+package com.example.domain
 
 data class CachedOfferScreenMetrics(
     val priceBrl: Double,
@@ -142,7 +141,7 @@ object OfferParser {
     private val uiNoiseExactOrContained = setOf(
         "mob lets", "moblets", "mob lets entregador", "nova oferta", "nova oferta disponivel",
         "oferta disponivel", "detalhes da entrega", "aceitar", "aceitar corrida", "aceitar entrega",
-        "recusar", "rejeitar", "ignorar", "fechar", "detalhes", "ver rota", "ver mapa", "mapa", "voltar",
+        "recusar", "rejeitar", "ignorar", "fechar", "detalhes", "ver rota", "ver mapa",
         "entregador", "corrida", "pagamento", "dinheiro", "pix", "cartao", "maquininha",
         "troco", "online", "offline", "disponivel", "aguardando", "calcular", "confirmar",
         "retirada", "coleta", "entrega", "cliente", "destino", "origem", "loja",
@@ -171,7 +170,6 @@ object OfferParser {
         val cleanLines = rawText.lines().map { it.replace(Regex("\\s+"), " ").trim() }.filter { it.isNotBlank() }
         if (cleanLines.isEmpty()) return null
         val joined = cleanLines.joinToString("\n")
-        if (joined.contains("Disp. (", ignoreCase = true) || joined.contains("Pend. (", ignoreCase = true) || joined.contains("Prog. (", ignoreCase = true)) return null
         val price = extractPrice(joined) ?: return null
         if (price <= 0.5 || price > 1500.0) return null
 
@@ -208,7 +206,6 @@ object OfferParser {
 
         if (cleanLines.isEmpty()) return null
         val joined = cleanLines.joinToString("\n")
-        if (joined.contains("Disp. (", ignoreCase = true) || joined.contains("Pend. (", ignoreCase = true) || joined.contains("Prog. (", ignoreCase = true)) return null
         val isDetailsScreen = isDetailsScreenText(joined)
 
         val directPrice = extractPrice(joined)
@@ -273,26 +270,17 @@ object OfferParser {
             returnMarkers.any { l.contains(it) }
         }
 
-        val etaRegex = Regex("""^\s*(?:1[ºªa°]\s*parada\s*[-•:]?\s*)?\d{1,3}\s*min\b\s*[-•:]?\s*""", RegexOption.IGNORE_CASE)
-        val storeIdx = cleanLines.indexOfFirst { parenthesizedKmRegex.containsMatchIn(it) }
-        val etaIdx = cleanLines.indexOfFirst { etaRegex.containsMatchIn(it) }
-
-        val pickupLines = when {
-            deliveryStopIdx >= 0 -> cleanLines.take(deliveryStopIdx)
-            storeIdx >= 0 && etaIdx > storeIdx -> cleanLines.subList(storeIdx, etaIdx)
-            else -> cleanLines.take(kotlin.math.min(cleanLines.size, 4))
+        val pickupLines = if (deliveryStopIdx >= 0) {
+            cleanLines.take(deliveryStopIdx)
+        } else {
+            cleanLines.take(kotlin.math.min(cleanLines.size, 4))
         }
 
-        val customerLines = when {
-            deliveryStopIdx >= 0 -> {
-                val endIdx = if (returnIdx > deliveryStopIdx) returnIdx else cleanLines.size
-                cleanLines.subList(deliveryStopIdx + 1, endIdx)
-            }
-            storeIdx >= 0 && etaIdx > storeIdx -> {
-                val endIdx = if (returnIdx > etaIdx) returnIdx else cleanLines.size
-                cleanLines.subList(etaIdx, endIdx).map { etaRegex.replace(it, "").trim() }
-            }
-            else -> cleanLines.drop(kotlin.math.min(cleanLines.size, 4))
+        val customerLines = if (deliveryStopIdx >= 0) {
+            val endIdx = if (returnIdx > deliveryStopIdx) returnIdx else cleanLines.size
+            cleanLines.subList(deliveryStopIdx + 1, endIdx)
+        } else {
+            cleanLines.drop(kotlin.math.min(cleanLines.size, 4))
         }
 
         // Process pickup & store lines (above 1º parada)
@@ -575,7 +563,9 @@ object OfferParser {
             .trim()
         val rightRaw = trimmed.substring(streetMatch.range.first).trim()
 
-        val hadSeparator = true
+        val hadSeparator = trimmed.substring(0, streetMatch.range.first)
+            .trimEnd()
+            .let { it.endsWith("-") || it.endsWith("•") || it.endsWith("|") || it.endsWith(",") || it.endsWith("/") }
 
         return if (hadSeparator && isPlausibleStoreName(leftRaw) && rightRaw.length >= 6) {
             leftRaw to rightRaw

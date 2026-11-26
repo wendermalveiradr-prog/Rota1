@@ -101,18 +101,14 @@ object OfferDecisionEngine {
         val avoidedDetails = buildList {
             if (customerAvoided) {
                 val note = customerRule.notes.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: ""
-                add("⚠️ EVITAR ENTREGA: ${customerRule.name}$note")
+                add("Destino evitado: ${customerRule.name}$note")
             }
             if (pickupAvoided && pickupRule.name != customerRule?.name) {
                 val note = pickupRule.notes.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: ""
-                add("⚠️ EVITAR COLETA: ${pickupRule.name}$note")
+                add("Coleta evitada: ${pickupRule.name}$note")
             }
         }
-        val neighborhoodAlert = if (avoidedDetails.isNotEmpty()) {
-            avoidedDetails.joinToString(" • ")
-        } else {
-            null
-        }
+        val neighborhoodAlert = avoidedDetails.joinToString(" • ").ifBlank { null }
 
         val unidentifiedSuffix = when {
             MontesClarosGeoCatalog.isUnidentified(customerLabel) &&

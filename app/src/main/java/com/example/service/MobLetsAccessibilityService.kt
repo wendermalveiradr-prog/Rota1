@@ -74,7 +74,6 @@ class MobLetsAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val pkg = event?.packageName?.toString().orEmpty()
         if (pkg.isBlank() || pkg in transientSystemPackages) return
-        if (event?.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) return
 
         val isMobLetsPackage = isMobLetsPackageName(pkg)
 
@@ -85,22 +84,12 @@ class MobLetsAccessibilityService : AccessibilityService() {
             return
         }
 
-        if (pkg == "com.android.settings" || pkg.contains("launcher", ignoreCase = true) || pkg.contains("chrome") || pkg.contains("whatsapp")) {
+        if (pkg == "com.android.settings") {
             // pkg, isTargetApp = false)
             return
         }
 
-        val hasActiveOfferRecently = lastActiveOfferSignature.isNotBlank() || (System.currentTimeMillis() - lastOfferScreenVisibleMs) < 25_000L
-        val isKnownDeliveryOrRideApp = isMobLetsPackage ||
-            hasActiveOfferRecently ||
-            pkg.contains("moblets", ignoreCase = true) ||
-            pkg.contains("mob.lets", ignoreCase = true) ||
-            pkg.contains("mob_lets", ignoreCase = true) ||
-            pkg.contains("ubercab.driver", ignoreCase = true) ||
-            pkg.contains("taxis99", ignoreCase = true) ||
-            pkg.contains("didiglobal.driver", ignoreCase = true) ||
-            pkg.contains("ninetynine", ignoreCase = true)
-        // pkg, isTargetApp = isKnownDeliveryOrRideApp)
+        // pkg, isTargetApp = isMobLetsPackage)
 
         if (activeEventJob?.isActive == true) return
         val now = System.currentTimeMillis()
@@ -135,8 +124,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
         )
 
         if (parsedFromAccessibility != null) {
-            lastOfferScreenVisibleMs = System.currentTimeMillis()
-            lastOfferScreenVisibleMs = System.currentTimeMillis()
+            lastOfferScreenVisibleMs = now
             lastNonOfferScreenStartMs = 0L
             lastScreenFingerprint = fingerprint
 
@@ -154,7 +142,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
 
             // New distinct offer detected -> cancel only pending accessibility parsing job and start instant analysis
             lastActiveOfferSignature = signature
-            if (!com.example.domain.OfferAnalysisCoordinator.isOverlayManuallyDisabled) // Manual apenas
+            // Manual apenas
             activeEventJob?.cancel()
             activeEventJob = serviceScope.launch {
                 try {
@@ -210,7 +198,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
             try {
                 val settings = prefs.getSettingsOnce()
                 if (settings.strictMobLetsPackageFilter && !isMobLetsPackage) return@launch
-                if (settings.ocrFallbackEnabled && isMobLetsPackage && extractedText.length < 35) {
+                if (settings.ocrFallbackEnabled && (isMobLetsPackage || extractedText.length < 35)) {
                     lastOcrScanMs = System.currentTimeMillis()
                     triggerOcrFallbackScan(
                         detectedPackage = pkg,
@@ -226,7 +214,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
 
     private fun isMobLetsPackageName(pkg: String): Boolean {
         val rootText = try {
-            val root = (windows?.firstOrNull { it.isActive && it.isFocused }?.root ?: rootInActiveWindow)
+            val root = rootInActiveWindow
             val text = collectNodeText(root)
             try { root?.recycle() } catch (_: Exception) {}
             text
@@ -235,7 +223,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
         }
         return pkg.contains("moblets", ignoreCase = true) ||
             pkg.contains("mob.lets", ignoreCase = true) ||
-            pkg.contains("mob_lets", ignoreCase = true) ||
+            pkg.contains("mob_lets", ignoreCase = true) || pkg.contains("ubercab.driver", ignoreCase = true) || pkg.contains("taxis99", ignoreCase = true) || pkg.contains("didiglobal.driver", ignoreCase = true) ||
             pkg.contains("delivery", ignoreCase = true) ||
             rootText.contains("mob", ignoreCase = true) ||
             rootText.contains("corrida", ignoreCase = true) ||
@@ -328,8 +316,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
 
                                 lastActiveOfferSignature = signature
                                 lastOfferScreenVisibleMs = System.currentTimeMillis()
-                                lastOfferScreenVisibleMs = System.currentTimeMillis()
-            lastNonOfferScreenStartMs = 0L
+                                lastNonOfferScreenStartMs = 0L
 
                                 app.container.analysisCoordinator.analyzeStructuredOffer(
                                     priceBrl = parsed.offerPriceBrl,
@@ -389,27 +376,6 @@ class MobLetsAccessibilityService : AccessibilityService() {
     }
 
     private fun collectWindowTextSafely(): String {
-        val allWindows = try { windows } catch (_: Exception) { null }
-        if (!allWindows.isNullOrEmpty()) {
-            // Prioriza a janela de oferta do Mob Lets (inclusive overlay de toque rápido por cima de outros apps)
-            for (win in allWindows) {
-                val winPkg = win.root?.packageName?.toString().orEmpty()
-                if (winPkg == packageName) continue
-                val rootNode = win.root ?: continue
-                val txt = try {
-                    collectNodeText(rootNode)
-                } finally {
-                    try { @Suppress("DEPRECATION") rootNode.recycle() } catch (_: Exception) {}
-                }
-                if (txt.contains("R$", ignoreCase = true) &&
-                    (txt.contains("Aceitar", ignoreCase = true) || txt.contains("parada", ignoreCase = true) || txt.contains("Detalhes da entrega", ignoreCase = true)) &&
-                    !txt.contains("Disp. (", ignoreCase = true)
-                ) {
-                    return txt
-                }
-            }
-        }
-
         val root = try {
             rootInActiveWindow
         } catch (_: Exception) {
@@ -475,8 +441,8 @@ class MobLetsAccessibilityService : AccessibilityService() {
     }
 
     companion object {
-        private const val EVENT_SCAN_INTERVAL_MS = 2500L
-        private const val OCR_SCAN_INTERVAL_MS = 5000L
+        private const val EVENT_SCAN_INTERVAL_MS = 80L
+        private const val OCR_SCAN_INTERVAL_MS = 3500L
         private const val OFFER_LEAVE_CONFIRMATION_MS = 2500L
     }
 }
