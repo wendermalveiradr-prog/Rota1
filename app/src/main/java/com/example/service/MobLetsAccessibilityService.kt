@@ -74,6 +74,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val pkg = event?.packageName?.toString().orEmpty()
         if (pkg.isBlank() || pkg in transientSystemPackages) return
+        if (event?.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) return
 
         val isMobLetsPackage = isMobLetsPackageName(pkg)
 
@@ -474,7 +475,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
     }
 
     companion object {
-        private const val EVENT_SCAN_INTERVAL_MS = 1500L
+        private const val EVENT_SCAN_INTERVAL_MS = 2500L
         private const val OCR_SCAN_INTERVAL_MS = 5000L
         private const val OFFER_LEAVE_CONFIRMATION_MS = 2500L
     }

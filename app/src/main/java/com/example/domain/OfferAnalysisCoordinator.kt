@@ -213,7 +213,7 @@ class OfferAnalysisCoordinator(
                 ServiceRuntimeBus.refineRun(runId, savedInstantOffer, detectedPackage)
 
                 // STAGE 2: Non-blocking background refinement via fresh GPS + Geocoder + OSRM
-                scheduleBackgroundOsrmRefinement(
+                if (false) scheduleBackgroundOsrmRefinement(
                     runId = runId,
                     savedOfferId = insertedId,
                     originalTimestamp = savedInstantOffer.timestamp,
@@ -249,7 +249,7 @@ class OfferAnalysisCoordinator(
                     currentLocation = driverLocation.point,
                     pickupAddress = pickupAddress,
                     customerAddress = customerAddress,
-                    useOsrmRoadRouting = freshSettings.useOsrmRoadRouting,
+                    useOsrmRoadRouting = false,
                     countReturn = freshSettings.countReturnEnabled
                 )
             ) {
@@ -307,7 +307,7 @@ class OfferAnalysisCoordinator(
         }
     }
 
-    private fun scheduleBackgroundOsrmRefinement(
+    private fun if (false) scheduleBackgroundOsrmRefinement(
         runId: Long,
         savedOfferId: Long,
         originalTimestamp: Long,
@@ -339,7 +339,7 @@ class OfferAnalysisCoordinator(
                     currentLocation = driverLocation.point,
                     pickupAddress = pickupAddress,
                     customerAddress = customerAddress,
-                    useOsrmRoadRouting = freshSettings.useOsrmRoadRouting,
+                    useOsrmRoadRouting = false,
                     countReturn = freshSettings.countReturnEnabled
                 )
 
