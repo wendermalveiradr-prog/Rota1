@@ -111,7 +111,7 @@ object OfferDecisionEngine {
         val neighborhoodAlert = if (avoidedDetails.isNotEmpty()) {
             avoidedDetails.joinToString(" • ")
         } else {
-            "✅ BAIRRO ACEITAR ($customerLabel)"
+            null
         }
 
         val unidentifiedSuffix = when {
@@ -141,17 +141,16 @@ object OfferDecisionEngine {
 
         val (decision, reason) = when {
             isBairroEvitado && isKmRuim -> {
-                TrafficLightDecision.RED to "VERMELHO • NÃO COMPENSA: $formattedRate/km (abaixo de $formattedTarget/km) + ${avoidedDetails.joinToString(" | ")}"
+                TrafficLightDecision.RED to "NÃO COMPENSA • BAIRRO EVITADO ($customerLabel) + KM abaixo da meta ($formattedRate/km)"
             }
             isBairroEvitado -> {
-                TrafficLightDecision.RED to "VERMELHO • NÃO COMPENSA (BAIRRO EVITADO): ${avoidedDetails.joinToString(" | ")} • Valor: $formattedRate/km"
+                TrafficLightDecision.RED to "NÃO COMPENSA • BAIRRO EVITADO ($customerLabel) mesmo com $formattedRate/km"
             }
             isKmRuim -> {
-                TrafficLightDecision.RED to "VERMELHO • NÃO COMPENSA: $formattedRate/km abaixo da meta de $formattedTarget/km • ✅ Bairro OK ($customerLabel)"
+                TrafficLightDecision.RED to "NÃO COMPENSA • KM abaixo de $formattedTarget/km (Bairro $customerLabel OK)"
             }
             else -> {
-                val bonusTag = if (customerPreferred) " • ⭐ Bairro Preferido ($customerLabel)" else " • ✅ Bairro OK ($customerLabel)"
-                TrafficLightDecision.GREEN to "VERDE • COMPENSA: $formattedRate/km acima da meta$bonusTag"
+                TrafficLightDecision.GREEN to "COMPENSA • Bairro $customerLabel OK + $formattedRate/km"
             }
         }
 

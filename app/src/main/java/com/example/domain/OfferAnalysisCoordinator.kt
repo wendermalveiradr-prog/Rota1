@@ -180,7 +180,7 @@ class OfferAnalysisCoordinator(
                 pickupDistanceHintKm = pickupDistanceHintKm,
                 screenTotalKmHint = screenTotalKmHint,
                 countReturn = rawSnippet.contains("com retorno", ignoreCase = true) ||
-                    rawSnippet.lines().any { it.trim().equals("retorno", ignoreCase = true) || it.trim().startsWith("retorno-", ignoreCase = true) || it.trim().startsWith("retorno ", ignoreCase = true) }
+                    false
             )
 
             if (instantRoute != null) {

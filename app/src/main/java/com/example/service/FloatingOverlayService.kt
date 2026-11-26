@@ -56,7 +56,7 @@ class FloatingOverlayService : Service() {
     private var windowManager: WindowManager? = null
     private var overlayRoot: LinearLayout? = null
     private var layoutParams: WindowManager.LayoutParams? = null
-    private var isExpanded = false
+    private var // isExpanded mantido estavel
     private var isStopping = false
     private var lastHandledMinimizeNonce = 0L
     private var lastHandledExpandNonce = 0L
