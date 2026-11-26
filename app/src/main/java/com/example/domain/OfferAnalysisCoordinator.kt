@@ -179,7 +179,8 @@ class OfferAnalysisCoordinator(
                 customerAddress = customerAddress,
                 pickupDistanceHintKm = pickupDistanceHintKm,
                 screenTotalKmHint = screenTotalKmHint,
-                countReturn = settings.countReturnEnabled
+                countReturn = rawSnippet.contains("com retorno", ignoreCase = true) ||
+                    rawSnippet.lines().any { it.trim().equals("retorno", ignoreCase = true) || it.trim().startsWith("retorno-", ignoreCase = true) || it.trim().startsWith("retorno ", ignoreCase = true) }
             )
 
             if (instantRoute != null) {
