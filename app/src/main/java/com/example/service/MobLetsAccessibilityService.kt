@@ -134,8 +134,8 @@ class MobLetsAccessibilityService : AccessibilityService() {
         )
 
         if (parsedFromAccessibility != null) {
-            lastOfferScreenVisibleMs = now
-            lastOfferScreenVisibleMs = now
+            lastOfferScreenVisibleMs = System.currentTimeMillis()
+            lastOfferScreenVisibleMs = System.currentTimeMillis()
             lastNonOfferScreenStartMs = 0L
             lastScreenFingerprint = fingerprint
 
@@ -327,7 +327,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
 
                                 lastActiveOfferSignature = signature
                                 lastOfferScreenVisibleMs = System.currentTimeMillis()
-                                lastOfferScreenVisibleMs = now
+                                lastOfferScreenVisibleMs = System.currentTimeMillis()
             lastNonOfferScreenStartMs = 0L
 
                                 app.container.analysisCoordinator.analyzeStructuredOffer(
