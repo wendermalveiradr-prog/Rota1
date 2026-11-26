@@ -118,6 +118,10 @@ class FloatingOverlayService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
+        if (intent?.action != ACTION_STOP && com.example.domain.OfferAnalysisCoordinator.isOverlayManuallyDisabled) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
         when (intent?.action) {
             ACTION_STOP -> {
                 stopOverlayNow()
