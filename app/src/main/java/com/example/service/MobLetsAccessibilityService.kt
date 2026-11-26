@@ -89,7 +89,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
             return
         }
 
-        val hasActiveOfferRecently = lastActiveOfferSignature.isNotBlank() || (now - lastOfferScreenVisibleMs) < 25_000L
+        val hasActiveOfferRecently = lastActiveOfferSignature.isNotBlank() || (System.currentTimeMillis() - lastOfferScreenVisibleMs) < 25_000L
         val isKnownDeliveryOrRideApp = isMobLetsPackage ||
             hasActiveOfferRecently ||
             pkg.contains("moblets", ignoreCase = true) ||
