@@ -307,7 +307,7 @@ class OfferAnalysisCoordinator(
         }
     }
 
-    private fun if (false) scheduleBackgroundOsrmRefinement(
+    private fun scheduleBackgroundOsrmRefinement(
         runId: Long,
         savedOfferId: Long,
         originalTimestamp: Long,
