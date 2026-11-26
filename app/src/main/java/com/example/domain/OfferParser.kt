@@ -1,4 +1,5 @@
-ppackage com.example.domain
+
+import android.net.wifi.hotspot2.omadm.PpsMoParserPpsMoParserackage com.example.domain
 
 data class CachedOfferScreenMetrics(
     val priceBrl: Double,
