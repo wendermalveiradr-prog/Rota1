@@ -384,8 +384,29 @@ class MobLetsAccessibilityService : AccessibilityService() {
     }
 
     private fun collectWindowTextSafely(): String {
+        val allWindows = try { windows } catch (_: Exception) { null }
+        if (!allWindows.isNullOrEmpty()) {
+            // Prioriza a janela de oferta do Mob Lets (inclusive overlay de toque rápido por cima de outros apps)
+            for (win in allWindows) {
+                val winPkg = win.root?.packageName?.toString().orEmpty()
+                if (winPkg == packageName) continue
+                val rootNode = win.root ?: continue
+                val txt = try {
+                    collectNodeText(rootNode)
+                } finally {
+                    try { @Suppress("DEPRECATION") rootNode.recycle() } catch (_: Exception) {}
+                }
+                if (txt.contains("R$", ignoreCase = true) &&
+                    (txt.contains("Aceitar", ignoreCase = true) || txt.contains("parada", ignoreCase = true) || txt.contains("Detalhes da entrega", ignoreCase = true)) &&
+                    !txt.contains("Disp. (", ignoreCase = true)
+                ) {
+                    return txt
+                }
+            }
+        }
+
         val root = try {
-            (windows?.firstOrNull { it.isActive && it.isFocused }?.root ?: rootInActiveWindow)
+            rootInActiveWindow
         } catch (_: Exception) {
             null
         } ?: return ""

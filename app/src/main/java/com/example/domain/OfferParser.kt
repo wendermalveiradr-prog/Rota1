@@ -170,6 +170,7 @@ object OfferParser {
         val cleanLines = rawText.lines().map { it.replace(Regex("\\s+"), " ").trim() }.filter { it.isNotBlank() }
         if (cleanLines.isEmpty()) return null
         val joined = cleanLines.joinToString("\n")
+        if (joined.contains("Disp. (", ignoreCase = true) || joined.contains("Pend. (", ignoreCase = true) || joined.contains("Prog. (", ignoreCase = true)) return null
         val price = extractPrice(joined) ?: return null
         if (price <= 0.5 || price > 1500.0) return null
 
@@ -206,6 +207,7 @@ object OfferParser {
 
         if (cleanLines.isEmpty()) return null
         val joined = cleanLines.joinToString("\n")
+        if (joined.contains("Disp. (", ignoreCase = true) || joined.contains("Pend. (", ignoreCase = true) || joined.contains("Prog. (", ignoreCase = true)) return null
         val isDetailsScreen = isDetailsScreenText(joined)
 
         val directPrice = extractPrice(joined)
@@ -270,7 +272,7 @@ object OfferParser {
             returnMarkers.any { l.contains(it) }
         }
 
-        val etaRegex = Regex("""^\s*\d{1,3}\s*min\b\s*[-•:]?\s*""", RegexOption.IGNORE_CASE)
+        val etaRegex = Regex("""^\s*(?:1[ºªa°]\s*parada\s*[-•:]?\s*)?\d{1,3}\s*min\b\s*[-•:]?\s*""", RegexOption.IGNORE_CASE)
         val storeIdx = cleanLines.indexOfFirst { parenthesizedKmRegex.containsMatchIn(it) }
         val etaIdx = cleanLines.indexOfFirst { etaRegex.containsMatchIn(it) }
 
