@@ -170,6 +170,7 @@ object OfferParser {
         val cleanLines = rawText.lines().map { it.replace(Regex("\\s+"), " ").trim() }.filter { it.isNotBlank() }
         if (cleanLines.isEmpty()) return null
         val joined = cleanLines.joinToString("\n")
+        if (joined.contains("Disp. (", ignoreCase = true) || joined.contains("Pend. (", ignoreCase = true)) return null
         val price = extractPrice(joined) ?: return null
         if (price <= 0.5 || price > 1500.0) return null
 
@@ -206,6 +207,7 @@ object OfferParser {
 
         if (cleanLines.isEmpty()) return null
         val joined = cleanLines.joinToString("\n")
+        if (joined.contains("Disp. (", ignoreCase = true) || joined.contains("Pend. (", ignoreCase = true)) return null
         val isDetailsScreen = isDetailsScreenText(joined)
 
         val directPrice = extractPrice(joined)
