@@ -45,8 +45,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
     private var lastScreenFingerprint = ""
 
     @Volatile
-    private var lastOfferScreenVisibleMs = now
-            lastNonOfferScreenStartMs = 0L
+    private var lastNonOfferScreenStartMs = 0L
 
     // Transient OS overlays / keyboards that should NOT trigger auto-minimize while inside Mob Lets
     private val transientSystemPackages = setOf(
