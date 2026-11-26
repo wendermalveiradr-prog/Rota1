@@ -1,4 +1,4 @@
-package com.example.domain
+ppackage com.example.domain
 
 data class CachedOfferScreenMetrics(
     val priceBrl: Double,

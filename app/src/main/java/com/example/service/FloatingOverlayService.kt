@@ -1,5 +1,7 @@
 package com.example.service
 
+import com.example.domain.OfferAnalysisCoordinator
+
 import android.app.AlertDialog
 import android.app.Notification
 import android.app.NotificationChannel
