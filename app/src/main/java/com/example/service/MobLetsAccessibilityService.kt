@@ -153,7 +153,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
 
             // New distinct offer detected -> cancel only pending accessibility parsing job and start instant analysis
             lastActiveOfferSignature = signature
-            ServiceRuntimeBus.requestExpandOverlay()
+            if (!com.example.domain.OfferAnalysisCoordinator.isOverlayManuallyDisabled) ServiceRuntimeBus.requestExpandOverlay()
             activeEventJob?.cancel()
             activeEventJob = serviceScope.launch {
                 try {
@@ -474,7 +474,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
     }
 
     companion object {
-        private const val EVENT_SCAN_INTERVAL_MS = 850L
+        private const val EVENT_SCAN_INTERVAL_MS = 1500L
         private const val OCR_SCAN_INTERVAL_MS = 5000L
         private const val OFFER_LEAVE_CONFIRMATION_MS = 2500L
     }

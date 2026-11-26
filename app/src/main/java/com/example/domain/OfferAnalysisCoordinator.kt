@@ -444,8 +444,12 @@ class OfferAnalysisCoordinator(
     }
 
     companion object {
-        fun startOrUpdateOverlay(context: Context) {
-            if (!Settings.canDrawOverlays(context)) return
+        @Volatile
+        var isOverlayManuallyDisabled = false
+
+        fun startOrUpdateOverlay(context: Context, forceEnable: Boolean = false) {
+            if (forceEnable) isOverlayManuallyDisabled = false
+            if (isOverlayManuallyDisabled || !Settings.canDrawOverlays(context)) return
             val intent = Intent(context, FloatingOverlayService::class.java).apply {
                 action = FloatingOverlayService.ACTION_SHOW_OR_UPDATE
             }
@@ -460,6 +464,7 @@ class OfferAnalysisCoordinator(
         }
 
         fun stopOverlay(context: Context) {
+            isOverlayManuallyDisabled = true
             val intent = Intent(context, FloatingOverlayService::class.java).apply {
                 action = FloatingOverlayService.ACTION_STOP
             }
