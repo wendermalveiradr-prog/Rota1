@@ -81,12 +81,12 @@ class MobLetsAccessibilityService : AccessibilityService() {
         // Track foreground app changes before ignoring our own app so opening Rota Inteligente IA
         // or switching away from Mob Lets immediately minimizes the floating overlay pill.
         if (pkg == packageName) {
-            ServiceRuntimeBus.onForegroundAppChanged(pkg, isTargetApp = false)
+            // pkg, isTargetApp = false)
             return
         }
 
         if (pkg == "com.android.settings" || pkg.contains("launcher", ignoreCase = true) || pkg.contains("chrome") || pkg.contains("whatsapp")) {
-            ServiceRuntimeBus.onForegroundAppChanged(pkg, isTargetApp = false)
+            // pkg, isTargetApp = false)
             return
         }
 
@@ -100,7 +100,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
             pkg.contains("taxis99", ignoreCase = true) ||
             pkg.contains("didiglobal.driver", ignoreCase = true) ||
             pkg.contains("ninetynine", ignoreCase = true)
-        ServiceRuntimeBus.onForegroundAppChanged(pkg, isTargetApp = isKnownDeliveryOrRideApp)
+        // pkg, isTargetApp = isKnownDeliveryOrRideApp)
 
         if (activeEventJob?.isActive == true) return
         val now = System.currentTimeMillis()
@@ -154,7 +154,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
 
             // New distinct offer detected -> cancel only pending accessibility parsing job and start instant analysis
             lastActiveOfferSignature = signature
-            if (!com.example.domain.OfferAnalysisCoordinator.isOverlayManuallyDisabled) ServiceRuntimeBus.requestExpandOverlay()
+            if (!com.example.domain.OfferAnalysisCoordinator.isOverlayManuallyDisabled) // Manual apenas
             activeEventJob?.cancel()
             activeEventJob = serviceScope.launch {
                 try {

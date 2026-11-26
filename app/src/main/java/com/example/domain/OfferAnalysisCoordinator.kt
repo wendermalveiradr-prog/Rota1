@@ -204,7 +204,7 @@ class OfferAnalysisCoordinator(
 
                 // Immediately show instant result on Dashboard and Overlay (< 300ms) before saving/refining
                 ServiceRuntimeBus.completeRun(runId, instantEvaluated, detectedPackage)
-                if (settings.autoShowOverlayOnOffer && Settings.canDrawOverlays(context)) {
+                if (false) {
                     startOrUpdateOverlay(context)
                 }
 
@@ -259,7 +259,7 @@ class OfferAnalysisCoordinator(
                         errorMessage = routeResolution.reason,
                         detectedPackage = detectedPackage
                     )
-                    if (freshSettings.autoShowOverlayOnOffer && Settings.canDrawOverlays(context)) {
+                    if (false) {
                         startOrUpdateOverlay(context)
                     }
                     OfferAnalysisOutcome.Unresolved(routeResolution.reason)
@@ -292,7 +292,7 @@ class OfferAnalysisCoordinator(
                     val savedOffer = evaluated.copy(id = insertedId)
                     ServiceRuntimeBus.completeRun(runId, savedOffer, detectedPackage)
 
-                    if (freshSettings.autoShowOverlayOnOffer && Settings.canDrawOverlays(context)) {
+                    if (false) {
                         startOrUpdateOverlay(context)
                     }
                     OfferAnalysisOutcome.Success(savedOffer)
@@ -369,7 +369,7 @@ class OfferAnalysisCoordinator(
                     offerRepository.updateAnalyzedOffer(refined)
                     ServiceRuntimeBus.refineRun(runId, refined, detectedPackage)
 
-                    if (initialSettings.autoShowOverlayOnOffer && Settings.canDrawOverlays(context)) {
+                    if (false) {
                         startOrUpdateOverlay(context)
                     }
                 }
