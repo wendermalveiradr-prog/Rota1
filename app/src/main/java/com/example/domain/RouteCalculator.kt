@@ -209,7 +209,7 @@ class RouteCalculator(
         currentLocation: GeoPoint,
         pickupAddress: String,
         customerAddress: String,
-        useOsrmRoadRouting: Boolean,
+        useOsrmRoadRouting: Boolean = false,
         countReturn: Boolean = false
     ): RouteResolutionResult = withContext(Dispatchers.IO) {
         val (pickupPoint, customerPoint) = coroutineScope {
@@ -344,7 +344,7 @@ class RouteCalculator(
         pickupPoint: GeoPoint,
         customerPoint: GeoPoint,
         centerPoint: GeoPoint,
-        useOsrmRoadRouting: Boolean,
+        useOsrmRoadRouting: Boolean = false,
         countReturn: Boolean
     ): RouteCalculationResult {
         inFlightRoutes[routeKey]?.let { existing ->
@@ -385,7 +385,7 @@ class RouteCalculator(
         pickupPoint: GeoPoint,
         customerPoint: GeoPoint,
         centerPoint: GeoPoint,
-        useOsrmRoadRouting: Boolean,
+        useOsrmRoadRouting: Boolean = false,
         countReturn: Boolean
     ): RouteCalculationResult {
         if (useOsrmRoadRouting) {

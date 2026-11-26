@@ -190,7 +190,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
             }
         }
 
-        if (sameVisualScreen) return
+        if (sameVisualScreen && lastActiveOfferSignature.isNotBlank()) return
         lastScreenFingerprint = fingerprint
 
         if (now - lastOcrScanMs < OCR_SCAN_INTERVAL_MS || isOcrInFlight.get()) return
@@ -442,7 +442,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
     }
 
     companion object {
-        private const val EVENT_SCAN_INTERVAL_MS = 80L
+        private const val EVENT_SCAN_INTERVAL_MS = 250L
         private const val OCR_SCAN_INTERVAL_MS = 3500L
         private const val OFFER_LEAVE_CONFIRMATION_MS = 2500L
     }
