@@ -57,6 +57,7 @@ class FloatingOverlayService : Service() {
     private var overlayRoot: LinearLayout? = null
     private var layoutParams: WindowManager.LayoutParams? = null
     private var isExpanded = true
+    private var lastRenderedSignature = ""
     private var isStopping = false
     private var lastHandledMinimizeNonce = 0L
     private var lastHandledExpandNonce = 0L

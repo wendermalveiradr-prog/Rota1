@@ -83,9 +83,7 @@ class OfferAnalysisCoordinator(
             activeRefinementJob?.cancel(CancellationException("Nova oferta recebida"))
 
             val nextRunId = ServiceRuntimeBus.nextRunId()
-            ServiceRuntimeBus.beginRun(
-                runId = nextRunId,
-                message = "Calculando semáforo instantâneo (Montes Claros)...",
+            // beginRun removido para zero travamento...",
                 detectedPackage = detectedPackage
             )
 
@@ -209,7 +207,7 @@ class OfferAnalysisCoordinator(
 
                 val insertedId = offerRepository.saveAnalyzedOffer(instantEvaluated)
                 val savedInstantOffer = instantEvaluated.copy(id = insertedId)
-                ServiceRuntimeBus.refineRun(runId, savedInstantOffer, detectedPackage)
+                // refineRun removido
 
                 // STAGE 2: Non-blocking background refinement via fresh GPS + Geocoder + OSRM
                 if (false) if (false) scheduleBackgroundOsrmRefinement(
@@ -388,7 +386,7 @@ class OfferAnalysisCoordinator(
             activeSignature = null
             val nextId = ServiceRuntimeBus.nextRunId()
             activeRunId = nextId
-            ServiceRuntimeBus.beginRun(nextId, "Executando OCR (ML Kit) na imagem selecionada...")
+            // beginRun removido para zero travamento na imagem selecionada...")
             nextId
         }
 
