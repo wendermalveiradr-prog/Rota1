@@ -207,13 +207,15 @@ class OfferAnalysisCoordinator(
                     startOrUpdateOverlay(context)
                 }
 
-                coordinatorScope.launch { try { offerRepository.saveAnalyzedOffer(instantEvaluated) } catch (_: Exception) {} }
+                val insertedId = offerRepository.saveAnalyzedOffer(instantEvaluated)
+                val savedInstantOffer = instantEvaluated.copy(id = insertedId)
+                ServiceRuntimeBus.refineRun(runId, savedInstantOffer, detectedPackage)
 
                 // STAGE 2: Non-blocking background refinement via fresh GPS + Geocoder + OSRM
                 if (false) scheduleBackgroundOsrmRefinement(
                     runId = runId,
-                    savedOfferId = 0L,
-                    originalTimestamp = instantEvaluated.timestamp,
+                    savedOfferId = insertedId,
+                    originalTimestamp = savedInstantOffer.timestamp,
                     priceBrl = priceBrl,
                     storeName = storeName,
                     storeConfidence = storeConfidence,
@@ -229,41 +231,10 @@ class OfferAnalysisCoordinator(
                     initialSettings = settings
                 )
 
-                return OfferAnalysisOutcome.Success(instantEvaluated)
+                return OfferAnalysisOutcome.Success(savedInstantOffer)
             }
 
-            // Fallback instantaneo 100% em memoria (< 2ms):
-            val fallbackRoute = routeCalculator.calculateInstantOfflineRoute(
-                currentLocation = instantLocation.point,
-                pickupAddress = pickupAddress.ifBlank { "Centro, Montes Claros" },
-                customerAddress = customerAddress.ifBlank { "Centro, Montes Claros" },
-                pickupDistanceHintKm = pickupDistanceHintKm ?: 1.2,
-                screenTotalKmHint = screenTotalKmHint ?: 3.2,
-                countReturn = rawSnippet.contains("com retorno", ignoreCase = true)
-            )
-            if (fallbackRoute != null) {
-                val quickEvaluated = OfferDecisionEngine.evaluateOffer(
-                    source = source,
-                    rawSnippet = effectiveSnippet,
-                    offerPriceBrl = priceBrl,
-                    storeName = storeName,
-                    storeConfidence = storeConfidence,
-                    pickupAddress = pickupAddress,
-                    pickupAddressConfidence = pickupAddressConfidence,
-                    pickupNeighborhoodHint = pickupNeighborhoodHint,
-                    customerAddress = customerAddress,
-                    customerAddressConfidence = customerAddressConfidence,
-                    customerNeighborhoodHint = customerNeighborhoodHint,
-                    route = fallbackRoute,
-                    usedGpsStart = instantLocation.usedGps,
-                    neighborhoodRules = rules,
-                    settings = settings
-                )
-                ServiceRuntimeBus.completeRun(runId, quickEvaluated, detectedPackage)
-                return OfferAnalysisOutcome.Success(quickEvaluated)
-            }
-
-            // Fallback antigo desativado:
+            // Fallback path when neither catalog nor screen km provided instant offline coordinates:
             val freshSettings = preferencesRepository.getSettingsOnce().also { cachedSettings = it }
             val freshRules = offerRepository.getNeighborhoodRulesOnce().also { cachedRules = it }
             val driverLocation = locationHelper.getCurrentLocationOrFallback()
