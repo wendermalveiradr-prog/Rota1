@@ -201,21 +201,20 @@ class OfferAnalysisCoordinator(
                     settings = settings
                 )
 
-                // Immediately show instant result on Dashboard and Overlay (< 300ms) before saving/refining
+                // Exibe resultado instantaneo (< 5ms) na janela flutuante e grava no historico sem travar
                 ServiceRuntimeBus.completeRun(runId, instantEvaluated, detectedPackage)
-                if (false) {
-                    startOrUpdateOverlay(context)
+                coordinatorScope.launch {
+                    try {
+                        offerRepository.saveAnalyzedOffer(instantEvaluated)
+                    } catch (_: Exception) {
+                    }
                 }
-
-                val insertedId = offerRepository.saveAnalyzedOffer(instantEvaluated)
-                val savedInstantOffer = instantEvaluated.copy(id = insertedId)
-                ServiceRuntimeBus.refineRun(runId, savedInstantOffer, detectedPackage)
 
                 // STAGE 2: Non-blocking background refinement via fresh GPS + Geocoder + OSRM
                 if (false) scheduleBackgroundOsrmRefinement(
                     runId = runId,
-                    savedOfferId = insertedId,
-                    originalTimestamp = savedInstantOffer.timestamp,
+                    savedOfferId = 0L,
+                    originalTimestamp = instantEvaluated.timestamp,
                     priceBrl = priceBrl,
                     storeName = storeName,
                     storeConfidence = storeConfidence,
@@ -231,7 +230,7 @@ class OfferAnalysisCoordinator(
                     initialSettings = settings
                 )
 
-                return OfferAnalysisOutcome.Success(savedInstantOffer)
+                return OfferAnalysisOutcome.Success(instantEvaluated)
             }
 
             // Fallback path when neither catalog nor screen km provided instant offline coordinates:
