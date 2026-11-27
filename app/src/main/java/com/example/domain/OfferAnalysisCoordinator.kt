@@ -236,15 +236,14 @@ class OfferAnalysisCoordinator(
             val fallbackTripKm = (screenTotalKmHint ?: 3.2).coerceIn(0.5, 80.0)
             val fallbackPickupKm = (pickupDistanceHintKm ?: 1.2).coerceIn(0.2, 20.0)
             val fallbackReturnKm = if (rawSnippet.contains("com retorno", ignoreCase = true)) fallbackTripKm else 0.0
-            val quickFallbackRoute = RouteCalculationResult(
-                pickupPoint = instantLocation.point,
-                customerPoint = GeoPoint(instantLocation.point.latitude + 0.014, instantLocation.point.longitude + 0.014),
-                leg1CurrentToPickupKm = fallbackPickupKm,
-                leg2PickupToCustomerKm = fallbackTripKm,
-                leg3CustomerToCenterKm = fallbackReturnKm,
-                totalKm = fallbackPickupKm + fallbackTripKm + fallbackReturnKm,
-                routeSource = "OFFLINE_FAST"
-            )
+            val quickFallbackRoute = routeCalculator.calculateInstantOfflineRoute(
+                currentLocation = instantLocation.point,
+                pickupAddress = pickupAddress.ifBlank { "Centro, Montes Claros" },
+                customerAddress = customerAddress.ifBlank { "Centro, Montes Claros" },
+                pickupDistanceHintKm = fallbackPickupKm,
+                screenTotalKmHint = fallbackTripKm,
+                countReturn = rawSnippet.contains("com retorno", ignoreCase = true)
+            ) ?: return OfferAnalysisOutcome.Unresolved("Endereço insuficiente na tela")
             val quickEvaluated = OfferDecisionEngine.evaluateOffer(
                 source = source,
                 rawSnippet = effectiveSnippet,
