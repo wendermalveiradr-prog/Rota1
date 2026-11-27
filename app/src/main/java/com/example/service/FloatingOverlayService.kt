@@ -57,7 +57,6 @@ class FloatingOverlayService : Service() {
     private var overlayRoot: LinearLayout? = null
     private var layoutParams: WindowManager.LayoutParams? = null
     private var isExpanded = true
-    private var lastRenderedSignature = ""
     private var isStopping = false
     private var lastHandledMinimizeNonce = 0L
     private var lastHandledExpandNonce = 0L
@@ -610,7 +609,11 @@ class FloatingOverlayService : Service() {
             return
         }
 
-        val (dotColor, emojiLabel, borderHex) = offer.decisionReason.removePrefix(\"VERDE • \").removePrefix(\"VERMELHO • \")
+        val (dotColor, emojiLabel, borderHex) = when (offer.decision) {
+            TrafficLightDecision.GREEN.name -> Triple(Color.parseColor("#10B981"), "🟢 COMPENSA", "#10B981")
+            TrafficLightDecision.YELLOW.name -> Triple(Color.parseColor("#F59E0B"), "🟡 ATENÇÃO", "#F59E0B")
+            else -> Triple(Color.parseColor("#EF4444"), "🔴 NÃO COMPENSA", "#EF4444")
+        }
 
         (overlayRoot?.background as? GradientDrawable)?.setStroke(dp(2), Color.parseColor(borderHex))
         decisionDotView.background = circleDrawable(dotColor)
