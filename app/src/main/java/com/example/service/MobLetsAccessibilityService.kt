@@ -385,14 +385,14 @@ class MobLetsAccessibilityService : AccessibilityService() {
         return "${Math.round(priceBrl * 100.0)}|$normStore|$normP|$normC"
     }
 
-    private fun collectWindowTextSafely(): String {
+        private fun collectWindowTextSafely(): String {
         val root = try {
             rootInActiveWindow
         } catch (_: Exception) {
             null
         } ?: return ""
 
-        return try {
+        val raw = try {
             collectNodeText(root)
         } finally {
             try {
@@ -400,6 +400,14 @@ class MobLetsAccessibilityService : AccessibilityService() {
                 root.recycle()
             } catch (_: Exception) {
             }
+        }
+
+        // Se estiver em Detalhes da entrega, descarta 100% da lista oculta que fica atras (Mapa / Disp. / Pend.)
+        val idxDetalhes = raw.indexOf("Detalhes da entrega", ignoreCase = true)
+        return if (idxDetalhes >= 0) {
+            raw.substring(idxDetalhes)
+        } else {
+            raw
         }
     }
 
