@@ -265,10 +265,12 @@ object OfferParser {
         }
 
         val returnMarkers = listOf("retorno", "ponto de retorno")
-        val returnIdx = cleanLines.indexOfFirst { line ->
-            val l = line.lowercase()
-            returnMarkers.any { l.contains(it) }
-        }
+        val returnIdx = if (deliveryStopIdx >= 0) {
+            cleanLines.drop(deliveryStopIdx + 1).indexOfFirst { line ->
+                val l = line.lowercase()
+                returnMarkers.any { l == it || l.startsWith("$it ") || l.startsWith("$it:") }
+            }.let { if (it >= 0) deliveryStopIdx + 1 + it else -1 }
+        } else -1
 
         val touchPickupIdx = cleanLines.indexOfFirst { parenthesizedKmRegex.containsMatchIn(it) && !it.contains("parada", ignoreCase = true) }
         val touchCustomerIdx = if (touchPickupIdx >= 0) {
@@ -310,7 +312,7 @@ object OfferParser {
                 continue
             }
 
-            if (isUiScreenHeaderLine(line) || isUiFooterCtaLine(line) || isDistanceOrMetaNoise(line) || looksLikePrice(line)) {
+            if (lowerLine.contains("bateria") || isUiScreenHeaderLine(line) || isUiFooterCtaLine(line) || isDistanceOrMetaNoise(line) || looksLikePrice(line)) {
                 continue
             }
 

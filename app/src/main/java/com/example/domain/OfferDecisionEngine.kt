@@ -132,12 +132,12 @@ object OfferDecisionEngine {
 
         val (decision, reason) = when {
             customerAvoided || pickupAvoided -> {
-                TrafficLightDecision.RED to "NÃO COMPENSA • BAIRRO EVITADO ($customerLabel) • ${formatBrl(earningsPerKm)}/km"
+                TrafficLightDecision.RED to "NÃO COMPENSA • BAIRRO EVITADO ($customerLabel)"
             }
             earningsPerKm < target -> {
                 val formattedRate = formatBrl(earningsPerKm)
                 val formattedTarget = formatBrl(target)
-                TrafficLightDecision.RED to "NÃO COMPENSA • $formattedRate/km (Meta $formattedTarget) • Bairro $customerLabel OK"
+                TrafficLightDecision.RED to "NÃO COMPENSA (Meta $formattedTarget) • Bairro $customerLabel OK"
             }
             earningsPerKm < comfortMargin && !customerPreferred -> {
                 val formattedRate = formatBrl(earningsPerKm)
@@ -149,7 +149,7 @@ object OfferDecisionEngine {
             else -> {
                 val formattedRate = formatBrl(earningsPerKm)
                 val bonusTag = if (customerPreferred) " • Bairro preferido ($customerLabel)" else ""
-                TrafficLightDecision.GREEN to "COMPENSA • $formattedRate/km • Bairro $customerLabel OK"
+                TrafficLightDecision.GREEN to "COMPENSA • Bairro $customerLabel OK"
             }
         }
 
