@@ -212,7 +212,7 @@ class OfferAnalysisCoordinator(
                 ServiceRuntimeBus.refineRun(runId, savedInstantOffer, detectedPackage)
 
                 // STAGE 2: Non-blocking background refinement via fresh GPS + Geocoder + OSRM
-                if (false) scheduleBackgroundOsrmRefinement(
+                if (false) if (false) scheduleBackgroundOsrmRefinement(
                     runId = runId,
                     savedOfferId = insertedId,
                     originalTimestamp = savedInstantOffer.timestamp,

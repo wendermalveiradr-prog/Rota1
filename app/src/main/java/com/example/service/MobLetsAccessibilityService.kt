@@ -91,7 +91,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
 
         // pkg, isTargetApp = isMobLetsPackage)
 
-        if (activeEventJob?.isActive == true) return
+        
         val now = System.currentTimeMillis()
         if (now - lastEventScanMs < EVENT_SCAN_INTERVAL_MS) return
         lastEventScanMs = now
@@ -451,8 +451,8 @@ class MobLetsAccessibilityService : AccessibilityService() {
     }
 
     companion object {
-        private const val EVENT_SCAN_INTERVAL_MS = 300L
+        private const val EVENT_SCAN_INTERVAL_MS = 50L
         private const val OCR_SCAN_INTERVAL_MS = 3500L
-        private const val OFFER_LEAVE_CONFIRMATION_MS = 2500L
+        private const val OFFER_LEAVE_CONFIRMATION_MS = 0L
     }
 }
