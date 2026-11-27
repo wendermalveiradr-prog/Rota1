@@ -610,11 +610,7 @@ class FloatingOverlayService : Service() {
             return
         }
 
-        val (dotColor, emojiLabel, borderHex) = when (offer.decision) {
-            TrafficLightDecision.GREEN.name -> Triple(Color.parseColor("#10B981"), "🟢 COMPENSA", "#10B981")
-            TrafficLightDecision.YELLOW.name -> Triple(Color.parseColor("#F59E0B"), "🟡 ATENÇÃO", "#F59E0B")
-            else -> Triple(Color.parseColor("#EF4444"), "🔴 NÃO COMPENSA", "#EF4444")
-        }
+        val (dotColor, emojiLabel, borderHex) = offer.decisionReason.removePrefix(\"VERDE • \").removePrefix(\"VERMELHO • \")
 
         (overlayRoot?.background as? GradientDrawable)?.setStroke(dp(2), Color.parseColor(borderHex))
         decisionDotView.background = circleDrawable(dotColor)
