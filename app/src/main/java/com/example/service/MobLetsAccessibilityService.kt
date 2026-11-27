@@ -416,6 +416,10 @@ class MobLetsAccessibilityService : AccessibilityService() {
         builder: StringBuilder = StringBuilder()
     ): String {
         if (node == null || depth > 22 || builder.length > 2500) return builder.toString()
+        val cls = node.className?.toString().orEmpty()
+        if (cls.contains("MapView", ignoreCase = true) || cls.contains("WebView", ignoreCase = true) || cls.contains("GLSurfaceView", ignoreCase = true)) {
+            return builder.toString()
+        }
 
         val text = node.text?.toString()?.trim()
         if (!text.isNullOrBlank()) {
@@ -423,7 +427,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
             if (text.equals("Aceitar", ignoreCase = true)) return builder.toString()
         } else {
             val desc = node.contentDescription?.toString()?.trim()
-            if (!desc.isNullOrBlank()) {
+            if (!desc.isNullOrBlank() && !desc.contains("Mapa do Google", ignoreCase = true) && !desc.contains("Marcador do mapa", ignoreCase = true)) {
                 builder.append(desc).append('\n')
             }
         }
