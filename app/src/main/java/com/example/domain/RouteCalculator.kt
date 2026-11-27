@@ -863,4 +863,31 @@ class RouteCalculator(
                 .create(NominatimApi::class.java)
         }
     }
+
+    suspend fun calculateInstantOfflineRouteFallback(
+        currentLocation: GeoPoint,
+        pickupAddress: String,
+        customerAddress: String,
+        pickupDistanceHintKm: Double?,
+        screenTotalKmHint: Double?,
+        countReturn: Boolean,
+        useOsrmRoadRouting: Boolean = false
+    ): CalculatedRoute {
+        val pPoint = MontesClarosGeoCatalog.resolveOfflinePoint(pickupAddress) ?: currentLocation
+        val cPoint = MontesClarosGeoCatalog.resolveOfflinePoint(customerAddress)
+            ?: GeoPoint(pPoint.latitude + 0.014, pPoint.longitude + 0.014)
+        val distPickup = pickupDistanceHintKm ?: (haversineKm(currentLocation, pPoint) * 1.25).coerceIn(0.4, 8.0)
+        val distTrip = screenTotalKmHint ?: (haversineKm(pPoint, cPoint) * 1.28).coerceIn(0.8, 25.0)
+        val distReturn = if (countReturn) distTrip else 0.0
+        return CalculatedRoute(
+            pickupPoint = pPoint,
+            customerPoint = cPoint,
+            driverToPickupKm = distPickup,
+            pickupToCustomerKm = distTrip,
+            returnKm = distReturn,
+            totalKm = distPickup + distTrip + distReturn,
+            usedOsrmRoadNetwork = false
+        )
+    }
+
 }

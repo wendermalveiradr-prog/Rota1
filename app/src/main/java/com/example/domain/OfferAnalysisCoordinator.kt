@@ -244,7 +244,7 @@ class OfferAnalysisCoordinator(
             }
 
             when (
-                val routeResolution = routeCalculator.calculateCompleteRoute(
+                val routeResolution = routeCalculator.calculateInstantOfflineRouteFallback(
                     currentLocation = driverLocation.point,
                     pickupAddress = pickupAddress,
                     customerAddress = customerAddress,
@@ -334,7 +334,7 @@ class OfferAnalysisCoordinator(
                 val driverLocation = locationHelper.getCurrentLocationOrFallback()
                 if (!ServiceRuntimeBus.isRunCurrent(runId)) return@launch
 
-                val routeResolution = routeCalculator.calculateCompleteRoute(
+                val routeResolution = routeCalculator.calculateInstantOfflineRouteFallback(
                     currentLocation = driverLocation.point,
                     pickupAddress = pickupAddress,
                     customerAddress = customerAddress,
