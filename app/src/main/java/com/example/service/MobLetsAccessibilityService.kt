@@ -392,7 +392,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
             null
         } ?: return ""
 
-        val raw = try {
+        val rawFull = try {
             collectNodeText(root)
         } finally {
             try {
@@ -415,7 +415,9 @@ class MobLetsAccessibilityService : AccessibilityService() {
         depth: Int = 0,
         builder: StringBuilder = StringBuilder()
     ): String {
-        if (node == null || depth > 22 || builder.length > 2500) return builder.toString()
+        if (node == null || depth > 20 || builder.length > 2200) return builder.toString()
+        val cls = node.className?.toString().orEmpty()
+        if (cls.contains("MapView", ignoreCase = true) || cls.contains("WebView", ignoreCase = true) || cls.contains("GLSurfaceView", ignoreCase = true)) return builder.toString()
         val cls = node.className?.toString().orEmpty()
         if (cls.contains("MapView", ignoreCase = true) || cls.contains("WebView", ignoreCase = true) || cls.contains("GLSurfaceView", ignoreCase = true)) {
             return builder.toString()

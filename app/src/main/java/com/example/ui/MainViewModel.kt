@@ -93,7 +93,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             runtime = base.first.first,
             permissions = base.first.second,
             latestOffer = base.second.first,
-            offerHistory = base.second.second,
+            offerHistory = base.second.second.take(20),
             neighborhoodRules = base.third,
             settings = settings,
             isManualProcessing = isManualProcessing,
@@ -208,7 +208,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             OfferAnalysisCoordinator.stopOverlay(app)
             feedbackFlow.value = "Janela flutuante encerrada."
         } else {
-            OfferAnalysisCoordinator.startOrUpdateOverlay(app)
+            OfferAnalysisCoordinator.startOrUpdateOverlay(app, forceEnable = true)
             feedbackFlow.value = "Janela flutuante iniciada sobre outros aplicativos."
         }
     }
