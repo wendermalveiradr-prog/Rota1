@@ -232,37 +232,36 @@ class OfferAnalysisCoordinator(
                 return OfferAnalysisOutcome.Success(instantEvaluated)
             }
 
-            // Fallback instantaneo 100% em memoria (< 2ms) sem esperar GPS ou Geocoder online:
-            val fallbackTripKm = (screenTotalKmHint ?: 3.2).coerceIn(0.5, 80.0)
-            val fallbackPickupKm = (pickupDistanceHintKm ?: 1.2).coerceIn(0.2, 20.0)
-            val fallbackReturnKm = if (rawSnippet.contains("com retorno", ignoreCase = true)) fallbackTripKm else 0.0
-            val quickFallbackRoute = routeCalculator.calculateInstantOfflineRoute(
+            // Fallback instantaneo 100% em memoria (< 2ms):
+            val fallbackRoute = routeCalculator.calculateInstantOfflineRoute(
                 currentLocation = instantLocation.point,
                 pickupAddress = pickupAddress.ifBlank { "Centro, Montes Claros" },
                 customerAddress = customerAddress.ifBlank { "Centro, Montes Claros" },
-                pickupDistanceHintKm = fallbackPickupKm,
-                screenTotalKmHint = fallbackTripKm,
+                pickupDistanceHintKm = pickupDistanceHintKm ?: 1.2,
+                screenTotalKmHint = screenTotalKmHint ?: 3.2,
                 countReturn = rawSnippet.contains("com retorno", ignoreCase = true)
-            ) ?: return OfferAnalysisOutcome.Unresolved("Endereço insuficiente na tela")
-            val quickEvaluated = OfferDecisionEngine.evaluateOffer(
-                source = source,
-                rawSnippet = effectiveSnippet,
-                offerPriceBrl = priceBrl,
-                storeName = storeName,
-                storeConfidence = storeConfidence,
-                pickupAddress = pickupAddress,
-                pickupAddressConfidence = pickupAddressConfidence,
-                pickupNeighborhoodHint = pickupNeighborhoodHint,
-                customerAddress = customerAddress,
-                customerAddressConfidence = customerAddressConfidence,
-                customerNeighborhoodHint = customerNeighborhoodHint,
-                route = quickFallbackRoute,
-                usedGpsStart = instantLocation.usedGps,
-                neighborhoodRules = rules,
-                settings = settings
             )
-            ServiceRuntimeBus.completeRun(runId, quickEvaluated, detectedPackage)
-            return OfferAnalysisOutcome.Success(quickEvaluated)
+            if (fallbackRoute != null) {
+                val quickEvaluated = OfferDecisionEngine.evaluateOffer(
+                    source = source,
+                    rawSnippet = effectiveSnippet,
+                    offerPriceBrl = priceBrl,
+                    storeName = storeName,
+                    storeConfidence = storeConfidence,
+                    pickupAddress = pickupAddress,
+                    pickupAddressConfidence = pickupAddressConfidence,
+                    pickupNeighborhoodHint = pickupNeighborhoodHint,
+                    customerAddress = customerAddress,
+                    customerAddressConfidence = customerAddressConfidence,
+                    customerNeighborhoodHint = customerNeighborhoodHint,
+                    route = fallbackRoute,
+                    usedGpsStart = instantLocation.usedGps,
+                    neighborhoodRules = rules,
+                    settings = settings
+                )
+                ServiceRuntimeBus.completeRun(runId, quickEvaluated, detectedPackage)
+                return OfferAnalysisOutcome.Success(quickEvaluated)
+            }
 
             // Fallback antigo desativado:
             val freshSettings = preferencesRepository.getSettingsOnce().also { cachedSettings = it }
