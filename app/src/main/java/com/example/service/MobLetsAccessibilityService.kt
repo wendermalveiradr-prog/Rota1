@@ -73,7 +73,8 @@ class MobLetsAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val pkg = event?.packageName?.toString().orEmpty()
-        if (pkg.isBlank() || pkg in transientSystemPackages) return
+        if (pkg.isBlank() || pkg == packageName || pkg in transientSystemPackages) return
+        if (event?.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) return
 
         val nowCheck = System.currentTimeMillis()
         if (pkg != packageName && event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && nowCheck - lastEventScanMs < 200L) return

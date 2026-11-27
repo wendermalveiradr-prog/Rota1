@@ -124,7 +124,7 @@ class LocationHelper(private val context: Context) {
     }
 
     companion object {
-        private const val GPS_TIMEOUT_MS = 2200L
-        private const val GPS_CACHE_TTL_MS = 15_000L
+        private const val GPS_TIMEOUT_MS = 120L
+        private const val GPS_CACHE_TTL_MS = 120_000L
     }
 }
