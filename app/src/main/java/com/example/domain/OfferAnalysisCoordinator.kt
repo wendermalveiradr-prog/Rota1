@@ -83,7 +83,9 @@ class OfferAnalysisCoordinator(
             activeRefinementJob?.cancel(CancellationException("Nova oferta recebida"))
 
             val nextRunId = ServiceRuntimeBus.nextRunId()
-            // beginRun removido para zero travamento...",
+            ServiceRuntimeBus.beginRun(
+                runId = nextRunId,
+                message = "Calculando semáforo instantâneo (Montes Claros)...",
                 detectedPackage = detectedPackage
             )
 
@@ -386,7 +388,7 @@ class OfferAnalysisCoordinator(
             activeSignature = null
             val nextId = ServiceRuntimeBus.nextRunId()
             activeRunId = nextId
-            // beginRun removido para zero travamento na imagem selecionada...")
+            ServiceRuntimeBus.beginRun(nextId, "Executando OCR (ML Kit) na imagem selecionada...")
             nextId
         }
 
