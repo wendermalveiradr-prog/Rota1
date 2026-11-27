@@ -270,17 +270,26 @@ object OfferParser {
             returnMarkers.any { l.contains(it) }
         }
 
-        val pickupLines = if (deliveryStopIdx >= 0) {
-            cleanLines.take(deliveryStopIdx)
-        } else {
-            cleanLines.take(kotlin.math.min(cleanLines.size, 4))
+        val touchPickupIdx = cleanLines.indexOfFirst { parenthesizedKmRegex.containsMatchIn(it) && !it.contains("parada", ignoreCase = true) }
+        val touchCustomerIdx = if (touchPickupIdx >= 0) {
+            cleanLines.drop(touchPickupIdx + 1).indexOfFirst { line ->
+                Regex("""^\d{1,3}\s*min\b""", RegexOption.IGNORE_CASE).containsMatchIn(line) || looksLikeAddressLine(line)
+            }.let { if (it >= 0) touchPickupIdx + 1 + it else -1 }
+        } else -1
+
+        val pickupLines = when {
+            deliveryStopIdx >= 0 -> cleanLines.take(deliveryStopIdx)
+            touchPickupIdx >= 0 && touchCustomerIdx > touchPickupIdx -> cleanLines.subList(touchPickupIdx, touchCustomerIdx)
+            else -> cleanLines.take(kotlin.math.min(cleanLines.size, 4))
         }
 
-        val customerLines = if (deliveryStopIdx >= 0) {
-            val endIdx = if (returnIdx > deliveryStopIdx) returnIdx else cleanLines.size
-            cleanLines.subList(deliveryStopIdx + 1, endIdx)
-        } else {
-            cleanLines.drop(kotlin.math.min(cleanLines.size, 4))
+        val customerLines = when {
+            deliveryStopIdx >= 0 -> {
+                val endIdx = if (returnIdx > deliveryStopIdx) returnIdx else cleanLines.size
+                cleanLines.subList(deliveryStopIdx + 1, endIdx)
+            }
+            touchCustomerIdx >= 0 -> cleanLines.drop(touchCustomerIdx)
+            else -> cleanLines.drop(kotlin.math.min(cleanLines.size, 4))
         }
 
         // Process pickup & store lines (above 1º parada)
@@ -314,21 +323,22 @@ object OfferParser {
                 }
             }
 
-            val (storePart, addressPart) = splitStoreAndAddress(line)
+            val cleanedTouchLine = line.replace(Regex("""\s*-?\s*\d{1,3}\s*min\b\s*""", RegexOption.IGNORE_CASE), " ").replace(Regex("\\s{2,}"), " ").trim()
+            val (storePart, addressPart) = splitStoreAndAddress(cleanedTouchLine)
             if (storePart.isNotBlank() && detectedStoreName.isBlank() && isPlausibleStoreName(storePart)) {
                 detectedStoreName = storePart
                 storeFromExplicitMarker = true
             }
 
-            val targetAddr = addressPart.ifBlank { line }
+            val targetAddr = addressPart.ifBlank { cleanedTouchLine }
             if (looksLikeAddressLine(targetAddr) && !detectedStoreName.equals(targetAddr, ignoreCase = true)) {
                 pickupParts.add(targetAddr)
                 pickupFromExplicitSection = true
                 extractExplicitNeighborhood(targetAddr)?.let { hint ->
                     if (pickupNeighborhoodHint.isBlank()) pickupNeighborhoodHint = hint
                 }
-            } else if (isPlausibleStoreName(line) && detectedStoreName.isBlank()) {
-                detectedStoreName = line
+            } else if (isPlausibleStoreName(cleanedTouchLine) && detectedStoreName.isBlank()) {
+                detectedStoreName = cleanedTouchLine
                 storeFromExplicitMarker = true
             }
         }
@@ -343,10 +353,11 @@ object OfferParser {
                 continue
             }
 
-            if (looksLikeAddressLine(line) || hasMeaningfulAddressTokens(line)) {
-                customerParts.add(line)
+            val cleanCustLine = line.replace(Regex("""^\d{1,3}\s*min\b\s*""", RegexOption.IGNORE_CASE), "").trim()
+            if (cleanCustLine.isNotBlank() && (looksLikeAddressLine(cleanCustLine) || hasMeaningfulAddressTokens(cleanCustLine))) {
+                customerParts.add(cleanCustLine)
                 customerFromExplicitSection = true
-                extractExplicitNeighborhood(line)?.let { hint ->
+                extractExplicitNeighborhood(cleanCustLine)?.let { hint ->
                     if (customerNeighborhoodHint.isBlank()) customerNeighborhoodHint = hint
                 }
             }
