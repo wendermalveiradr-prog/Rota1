@@ -208,7 +208,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
             try {
                 val settings = prefs.getSettingsOnce()
                 if (settings.strictMobLetsPackageFilter && !isMobLetsPackage) return@launch
-                if (settings.ocrFallbackEnabled && (isMobLetsPackage || extractedText.length < 35)) {
+                if (false && settings.ocrFallbackEnabled) {
                     lastOcrScanMs = System.currentTimeMillis()
                     triggerOcrFallbackScan(
                         detectedPackage = pkg,

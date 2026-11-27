@@ -207,9 +207,7 @@ class OfferAnalysisCoordinator(
                     startOrUpdateOverlay(context)
                 }
 
-                val insertedId = offerRepository.saveAnalyzedOffer(instantEvaluated)
-                val savedInstantOffer = instantEvaluated.copy(id = insertedId)
-                ServiceRuntimeBus.refineRun(runId, savedInstantOffer, detectedPackage)
+                coordinatorScope.launch { try { offerRepository.saveAnalyzedOffer(instantEvaluated) } catch (_: Exception) {} }
 
                 // STAGE 2: Non-blocking background refinement via fresh GPS + Geocoder + OSRM
                 if (false) scheduleBackgroundOsrmRefinement(
@@ -231,10 +229,43 @@ class OfferAnalysisCoordinator(
                     initialSettings = settings
                 )
 
-                return OfferAnalysisOutcome.Success(savedInstantOffer)
+                return OfferAnalysisOutcome.Success(instantEvaluated)
             }
 
-            // Fallback path when neither catalog nor screen km provided instant offline coordinates:
+            // Fallback instantaneo 100% em memoria (< 2ms) sem esperar GPS ou Geocoder online:
+            val fallbackTripKm = (screenTotalKmHint ?: 3.2).coerceIn(0.5, 80.0)
+            val fallbackPickupKm = (pickupDistanceHintKm ?: 1.2).coerceIn(0.2, 20.0)
+            val fallbackReturnKm = if (rawSnippet.contains("com retorno", ignoreCase = true)) fallbackTripKm else 0.0
+            val quickFallbackRoute = RouteCalculationResult(
+                pickupPoint = instantLocation.point,
+                customerPoint = GeoPoint(instantLocation.point.latitude + 0.014, instantLocation.point.longitude + 0.014),
+                leg1CurrentToPickupKm = fallbackPickupKm,
+                leg2PickupToCustomerKm = fallbackTripKm,
+                leg3CustomerToCenterKm = fallbackReturnKm,
+                totalKm = fallbackPickupKm + fallbackTripKm + fallbackReturnKm,
+                routeSource = "OFFLINE_FAST"
+            )
+            val quickEvaluated = OfferDecisionEngine.evaluateOffer(
+                source = source,
+                rawSnippet = effectiveSnippet,
+                offerPriceBrl = priceBrl,
+                storeName = storeName,
+                storeConfidence = storeConfidence,
+                pickupAddress = pickupAddress,
+                pickupAddressConfidence = pickupAddressConfidence,
+                pickupNeighborhoodHint = pickupNeighborhoodHint,
+                customerAddress = customerAddress,
+                customerAddressConfidence = customerAddressConfidence,
+                customerNeighborhoodHint = customerNeighborhoodHint,
+                route = quickFallbackRoute,
+                usedGpsStart = instantLocation.usedGps,
+                neighborhoodRules = rules,
+                settings = settings
+            )
+            ServiceRuntimeBus.completeRun(runId, quickEvaluated, detectedPackage)
+            return OfferAnalysisOutcome.Success(quickEvaluated)
+
+            // Fallback antigo desativado:
             val freshSettings = preferencesRepository.getSettingsOnce().also { cachedSettings = it }
             val freshRules = offerRepository.getNeighborhoodRulesOnce().also { cachedRules = it }
             val driverLocation = locationHelper.getCurrentLocationOrFallback()
