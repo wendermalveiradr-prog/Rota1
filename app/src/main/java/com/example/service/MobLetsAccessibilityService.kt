@@ -407,11 +407,12 @@ class MobLetsAccessibilityService : AccessibilityService() {
         depth: Int = 0,
         builder: StringBuilder = StringBuilder()
     ): String {
-        if (node == null || depth > 10 || builder.length > 1200) return builder.toString()
+        if (node == null || depth > 22 || builder.length > 2500) return builder.toString()
 
         val text = node.text?.toString()?.trim()
         if (!text.isNullOrBlank()) {
             builder.append(text).append('\n')
+            if (text.equals("Aceitar", ignoreCase = true)) return builder.toString()
         } else {
             val desc = node.contentDescription?.toString()?.trim()
             if (!desc.isNullOrBlank()) {
