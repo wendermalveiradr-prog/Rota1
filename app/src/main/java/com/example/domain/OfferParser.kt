@@ -200,7 +200,12 @@ object OfferParser {
         fallbackStoreName: String? = null,
         nowMs: Long = System.currentTimeMillis()
     ): ParsedOfferDraft? {
-        val cleanLines = rawText
+        val effectiveRaw = if (rawText.contains("Detalhes da entrega", ignoreCase = true) && rawText.contains("Disp. (", ignoreCase = true)) {
+            "Detalhes da entrega\n" + rawText.substringAfter("Detalhes da entrega")
+        } else {
+            rawText
+        }
+        val cleanLines = effectiveRaw
             .lines()
             .map { it.replace(Regex("\\s+"), " ").trim() }
             .filter { it.isNotBlank() && it.length >= 2 }
