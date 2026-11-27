@@ -75,6 +75,8 @@ class MobLetsAccessibilityService : AccessibilityService() {
         val pkg = event?.packageName?.toString().orEmpty()
         if (pkg.isBlank() || pkg in transientSystemPackages) return
 
+        val nowCheck = System.currentTimeMillis()
+        if (pkg != packageName && nowCheck - lastEventScanMs < 500L) return
         val isMobLetsPackage = isMobLetsPackageName(pkg)
 
         // Track foreground app changes before ignoring our own app so opening Rota Inteligente IA
@@ -405,7 +407,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
         depth: Int = 0,
         builder: StringBuilder = StringBuilder()
     ): String {
-        if (node == null || depth > 24 || builder.length > 4000) return builder.toString()
+        if (node == null || depth > 10 || builder.length > 1200) return builder.toString()
 
         val text = node.text?.toString()?.trim()
         if (!text.isNullOrBlank()) {
@@ -448,7 +450,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
     }
 
     companion object {
-        private const val EVENT_SCAN_INTERVAL_MS = 80L
+        private const val EVENT_SCAN_INTERVAL_MS = 500L
         private const val OCR_SCAN_INTERVAL_MS = 3500L
         private const val OFFER_LEAVE_CONFIRMATION_MS = 2500L
     }

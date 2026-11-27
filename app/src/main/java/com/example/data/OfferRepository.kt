@@ -91,6 +91,6 @@ class OfferRepository(
 
     companion object {
         private const val OFFER_RETENTION_MS = 30L * 24L * 60L * 60L * 1000L
-        private const val MAX_HISTORY_ROWS = 300
+        private const val MAX_HISTORY_ROWS = 30
     }
 }
