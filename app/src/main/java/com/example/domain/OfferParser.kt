@@ -312,7 +312,7 @@ object OfferParser {
                 continue
             }
 
-            if (lowerLine.contains("bateria") || isUiScreenHeaderLine(line) || isUiFooterCtaLine(line) || isDistanceOrMetaNoise(line) || looksLikePrice(line)) {
+            if (lowerLine.contains("bateria") || lowerLine.contains("agendada") || lowerLine.contains("disponivel com") || lowerLine.contains("disponível com") || isUiScreenHeaderLine(line) || isUiFooterCtaLine(line) || isDistanceOrMetaNoise(line) || looksLikePrice(line)) {
                 continue
             }
 
@@ -351,7 +351,7 @@ object OfferParser {
             if (line.isBlank()) continue
             val lowerLine = line.lowercase()
 
-            if (paymentNoiseTerms.any { lowerLine.contains(it) } || lowerLine.startsWith("os ") || isUiFooterCtaLine(line) || isDistanceOrMetaNoise(line) || looksLikePrice(line)) {
+            if (lowerLine == "obs" || lowerLine.startsWith("obs:") || lowerLine.startsWith("observa") || paymentNoiseTerms.any { lowerLine.contains(it) } || lowerLine.startsWith("os ") || isUiFooterCtaLine(line) || isDistanceOrMetaNoise(line) || looksLikePrice(line)) {
                 continue
             }
 

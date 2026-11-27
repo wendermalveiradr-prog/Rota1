@@ -312,7 +312,7 @@ object MontesClarosGeoCatalog {
             .replace(Regex("\\s+"), " ")
 
         val normAfter = normalize(afterLastDash)
-        if (normAfter.isBlank() || isCityOrNoiseOnly(normAfter) || streetPrefixRegex.matches(normAfter)) {
+        if (normAfter.isBlank() || normAfter in setOf("obs", "observacao", "observacoes", "retorno", "entrega") || isCityOrNoiseOnly(normAfter) || streetPrefixRegex.matches(normAfter)) {
             return null
         }
         if (normAfter.startsWith("loja ") || normAfter.startsWith("restaurante ") ||
