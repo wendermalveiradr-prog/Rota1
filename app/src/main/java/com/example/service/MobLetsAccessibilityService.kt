@@ -451,7 +451,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
     }
 
     companion object {
-        private const val EVENT_SCAN_INTERVAL_MS = 100L
+        private const val EVENT_SCAN_INTERVAL_MS = 80L
         private const val OCR_SCAN_INTERVAL_MS = 3500L
         private const val OFFER_LEAVE_CONFIRMATION_MS = 0L
     }
