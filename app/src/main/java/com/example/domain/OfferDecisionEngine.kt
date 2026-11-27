@@ -130,7 +130,7 @@ object OfferDecisionEngine {
         val comfortMargin = target * 1.18
         val isLongReturn = route.leg3CustomerToCenterKm > settings.cautionReturnThresholdKm
 
-        val netProfit = (offerPriceBrl - (route.totalKm * (settings.fuelCostPerKmBrl.takeIf { it > 0.0 } ?: 0.25))).coerceAtLeast(0.0)
+        val netProfit = (offerPriceBrl - (route.totalKm * 0.25)).coerceAtLeast(0.0)
         val isBairroEvitado = customerAvoided || pickupAvoided
         val isKmRuim = earningsPerKm < target
         val formattedRate = formatBrl(earningsPerKm)
