@@ -101,17 +101,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
         val prefs = app.container.preferencesRepository
 
         // Capture node text synchronously before node snapshots go stale
-        val rawCaptured = collectWindowTextSafely()
-        val extractedText = if (rawCaptured.contains("Detalhes da entrega", ignoreCase = true) || rawCaptured.contains("1º parada", ignoreCase = true) || rawCaptured.contains("1ª parada", ignoreCase = true)) {
-            rawCaptured.lines().filterNot { l ->
-                val low = l.trim().lowercase()
-                low.contains("disp. (") || low.contains("pend. (") || low.contains("prog. (") ||
-                low.startsWith("coleta ") || low.startsWith("destino ") || low.contains("delivery flex") ||
-                low == "mapa" || low == "livre" || low == "entregas" || low == "desconectar"
-            }.joinToString("\n")
-        } else {
-            rawCaptured
-        }
+        val extractedText = collectWindowTextSafely()
         val fingerprint = normalizeScreenFingerprint(pkg, extractedText)
         val sameVisualScreen = fingerprint.isNotBlank() && fingerprint == lastScreenFingerprint
 
@@ -208,7 +198,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
             try {
                 val settings = prefs.getSettingsOnce()
                 if (settings.strictMobLetsPackageFilter && !isMobLetsPackage) return@launch
-                if (settings.ocrFallbackEnabled && (isMobLetsPackage || extractedText.length < 35)) {
+                if (false && settings.ocrFallbackEnabled) {
                     lastOcrScanMs = System.currentTimeMillis()
                     triggerOcrFallbackScan(
                         detectedPackage = pkg,
@@ -385,14 +375,14 @@ class MobLetsAccessibilityService : AccessibilityService() {
         return "${Math.round(priceBrl * 100.0)}|$normStore|$normP|$normC"
     }
 
-            private fun collectWindowTextSafely(): String {
+    private fun collectWindowTextSafely(): String {
         val root = try {
             rootInActiveWindow
         } catch (_: Exception) {
             null
         } ?: return ""
 
-        val raw = try {
+        return try {
             collectNodeText(root)
         } finally {
             try {
@@ -400,13 +390,6 @@ class MobLetsAccessibilityService : AccessibilityService() {
                 root.recycle()
             } catch (_: Exception) {
             }
-        }
-
-        val idxDetalhes = raw.indexOf("Detalhes da entrega", ignoreCase = true)
-        return if (idxDetalhes >= 0) {
-            raw.substring(idxDetalhes)
-        } else {
-            raw
         }
     }
 
@@ -454,6 +437,12 @@ class MobLetsAccessibilityService : AccessibilityService() {
         activeEventJob?.cancel()
         isOcrInFlight.set(false)
         serviceScope.cancel()
-         const val OFFER_LEAVE_CONFIRMATION_MS = 2500L
+        ServiceRuntimeBus.setAccessibilityConnected(false)
+    }
+
+    companion object {
+        private const val EVENT_SCAN_INTERVAL_MS = 80L
+        private const val OCR_SCAN_INTERVAL_MS = 3500L
+        private const val OFFER_LEAVE_CONFIRMATION_MS = 2500L
     }
 }
