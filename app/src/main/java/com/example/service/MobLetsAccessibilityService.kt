@@ -91,7 +91,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
 
         // pkg, isTargetApp = isMobLetsPackage)
 
-        
+        if (activeEventJob?.isActive == true) return
         val now = System.currentTimeMillis()
         if (now - lastEventScanMs < EVENT_SCAN_INTERVAL_MS) return
         lastEventScanMs = now
@@ -101,17 +101,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
         val prefs = app.container.preferencesRepository
 
         // Capture node text synchronously before node snapshots go stale
-        val rawCaptured = collectWindowTextSafely()
-        val extractedText = if (rawCaptured.contains("Detalhes da entrega", ignoreCase = true) || rawCaptured.contains("1º parada", ignoreCase = true) || rawCaptured.contains("1ª parada", ignoreCase = true)) {
-            rawCaptured.lines().filterNot { l ->
-                val low = l.lowercase()
-                low.contains("disp. (") || low.contains("pend. (") || low.contains("prog. (") ||
-                low.trim() == "mapa" || low.trim() == "livre" || low.trim() == "entregas" || low.trim() == "desconectar"
-            }.joinToString("\n")
-        } else {
-            rawCaptured
-        }
-        if (extractedText.contains("Nenhuma entrega no momento", ignoreCase = true)) return
+        val extractedText = collectWindowTextSafely()
         val fingerprint = normalizeScreenFingerprint(pkg, extractedText)
         val sameVisualScreen = fingerprint.isNotBlank() && fingerprint == lastScreenFingerprint
 
@@ -199,7 +189,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
             }
         }
 
-        if (sameVisualScreen && lastActiveOfferSignature.isNotBlank()) return
+        if (sameVisualScreen) return
         lastScreenFingerprint = fingerprint
 
         if (now - lastOcrScanMs < OCR_SCAN_INTERVAL_MS || isOcrInFlight.get()) return
@@ -233,7 +223,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
         }
         return pkg.contains("moblets", ignoreCase = true) ||
             pkg.contains("mob.lets", ignoreCase = true) ||
-            pkg.contains("mob_lets", ignoreCase = true) || pkg.contains("ubercab.driver", ignoreCase = true) || pkg.contains("taxis99", ignoreCase = true) || pkg.contains("didiglobal.driver", ignoreCase = true) ||
+            pkg.contains("mob_lets", ignoreCase = true) ||
             pkg.contains("delivery", ignoreCase = true) ||
             rootText.contains("mob", ignoreCase = true) ||
             rootText.contains("corrida", ignoreCase = true) ||
@@ -451,8 +441,8 @@ class MobLetsAccessibilityService : AccessibilityService() {
     }
 
     companion object {
-        private const val EVENT_SCAN_INTERVAL_MS = 120L
+        private const val EVENT_SCAN_INTERVAL_MS = 80L
         private const val OCR_SCAN_INTERVAL_MS = 3500L
-        private const val OFFER_LEAVE_CONFIRMATION_MS = 0L
+        private const val OFFER_LEAVE_CONFIRMATION_MS = 2500L
     }
 }

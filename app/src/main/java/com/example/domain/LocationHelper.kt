@@ -58,7 +58,6 @@ class LocationHelper(private val context: Context) {
 
     @SuppressLint("MissingPermission")
     suspend fun getCurrentLocationOrFallback(): DriverLocationResult {
-        return getCachedLocationOrCenterInstant()
         if (!hasLocationPermission()) {
             return DriverLocationResult(
                 point = MontesClarosGeoCatalog.DOWNTOWN_MONTES_CLAROS,

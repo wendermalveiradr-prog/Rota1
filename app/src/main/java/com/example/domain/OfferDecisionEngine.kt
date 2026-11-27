@@ -130,28 +130,28 @@ object OfferDecisionEngine {
         val comfortMargin = target * 1.18
         val isLongReturn = route.leg3CustomerToCenterKm > settings.cautionReturnThresholdKm
 
-        val netProfit = (offerPriceBrl - (route.totalKm * 0.25)).coerceAtLeast(0.0)
-        val isBairroEvitado = customerAvoided || pickupAvoided
-        val isKmRuim = earningsPerKm < target
-        val formattedRate = formatBrl(earningsPerKm)
-        val formattedTarget = formatBrl(target)
-
         val (decision, reason) = when {
-            isBairroEvitado && isKmRuim -> {
-                TrafficLightDecision.RED to "NÃO COMPENSA • BAIRRO EVITADO ($customerLabel) + KM abaixo da meta ($formattedRate/km)"
+            customerAvoided || pickupAvoided -> {
+                TrafficLightDecision.RED to "NÃO COMPENSA • BAIRRO EVITADO ($customerLabel) • ${formatBrl(earningsPerKm)}/km"
             }
-            isBairroEvitado -> {
-                TrafficLightDecision.RED to "NÃO COMPENSA • BAIRRO EVITADO ($customerLabel) • $formattedRate/km • Lucro ${formatBrl(netProfit)}"
+            earningsPerKm < target -> {
+                val formattedRate = formatBrl(earningsPerKm)
+                val formattedTarget = formatBrl(target)
+                TrafficLightDecision.RED to "NÃO COMPENSA • $formattedRate/km (Meta $formattedTarget) • Bairro $customerLabel OK"
             }
-            isKmRuim -> {
-                TrafficLightDecision.RED to "NÃO COMPENSA • $formattedRate/km (Meta $formattedTarget) • Lucro ${formatBrl(netProfit)} • Bairro $customerLabel OK"
+            earningsPerKm < comfortMargin && !customerPreferred -> {
+                val formattedRate = formatBrl(earningsPerKm)
+                TrafficLightDecision.YELLOW to "AMARELO • ATENÇÃO: Margem apertada ($formattedRate/km) considerando retorno ao Centro (${route.leg3CustomerToCenterKm} km)$unidentifiedSuffix$routeSourceTag"
+            }
+            isLongReturn -> {
+                TrafficLightDecision.YELLOW to "AMARELO • ATENÇÃO: Retorno longo até o Centro (${route.leg3CustomerToCenterKm} km)$unidentifiedSuffix$routeSourceTag"
             }
             else -> {
-                TrafficLightDecision.GREEN to "COMPENSA • $formattedRate/km • Lucro ${formatBrl(netProfit)} • Bairro $customerLabel OK"
+                val formattedRate = formatBrl(earningsPerKm)
+                val bonusTag = if (customerPreferred) " • Bairro preferido ($customerLabel)" else ""
+                TrafficLightDecision.GREEN to "COMPENSA • $formattedRate/km • Bairro $customerLabel OK"
             }
         }
-
-        
 
         return AnalyzedOfferEntity(
             timestamp = System.currentTimeMillis(),

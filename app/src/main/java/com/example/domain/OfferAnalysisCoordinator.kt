@@ -209,10 +209,10 @@ class OfferAnalysisCoordinator(
 
                 val insertedId = offerRepository.saveAnalyzedOffer(instantEvaluated)
                 val savedInstantOffer = instantEvaluated.copy(id = insertedId)
-                // refineRun removido
+                ServiceRuntimeBus.refineRun(runId, savedInstantOffer, detectedPackage)
 
                 // STAGE 2: Non-blocking background refinement via fresh GPS + Geocoder + OSRM
-                if (false) if (false) scheduleBackgroundOsrmRefinement(
+                if (false) scheduleBackgroundOsrmRefinement(
                     runId = runId,
                     savedOfferId = insertedId,
                     originalTimestamp = savedInstantOffer.timestamp,
@@ -244,7 +244,7 @@ class OfferAnalysisCoordinator(
             }
 
             when (
-                val routeResolution = routeCalculator.calculateInstantOfflineRouteFallback(
+                val routeResolution = routeCalculator.calculateCompleteRoute(
                     currentLocation = driverLocation.point,
                     pickupAddress = pickupAddress,
                     customerAddress = customerAddress,
@@ -334,7 +334,7 @@ class OfferAnalysisCoordinator(
                 val driverLocation = locationHelper.getCurrentLocationOrFallback()
                 if (!ServiceRuntimeBus.isRunCurrent(runId)) return@launch
 
-                val routeResolution = routeCalculator.calculateInstantOfflineRouteFallback(
+                val routeResolution = routeCalculator.calculateCompleteRoute(
                     currentLocation = driverLocation.point,
                     pickupAddress = pickupAddress,
                     customerAddress = customerAddress,
@@ -443,8 +443,9 @@ class OfferAnalysisCoordinator(
     }
 
     companion object {
-        @Volatile
-        var isOverlayManuallyDisabled = false
+        @Volatile var isOverlayManuallyDisabled = false
+        @Volatile var cachedSettings: com.example.data.local.AppSettings? = null
+        @Volatile var cachedRules: List<com.example.data.local.NeighborhoodRuleEntity>? = null
 
         fun startOrUpdateOverlay(context: Context, forceEnable: Boolean = false) {
             if (forceEnable) isOverlayManuallyDisabled = false
