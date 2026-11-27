@@ -402,7 +402,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
             }
         }
 
-        val idxDetalhes = raw.indexOf("Detalhes da entrega", ignoreCase = true)
+        val idxDetalhes = rawFull.indexOf("Detalhes da entrega", ignoreCase = true)
         return if (idxDetalhes >= 0) {
             raw.substring(idxDetalhes)
         } else {
