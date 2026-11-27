@@ -444,8 +444,7 @@ class OfferAnalysisCoordinator(
 
     companion object {
         @Volatile var isOverlayManuallyDisabled = false
-        @Volatile var cachedSettings: com.example.data.local.AppSettings? = null
-        @Volatile var cachedRules: List<com.example.data.local.NeighborhoodRuleEntity>? = null
+                @Volatile var cachedRules: List<com.example.data.local.NeighborhoodRuleEntity>? = null
 
         fun startOrUpdateOverlay(context: Context, forceEnable: Boolean = false) {
             if (forceEnable) isOverlayManuallyDisabled = false
