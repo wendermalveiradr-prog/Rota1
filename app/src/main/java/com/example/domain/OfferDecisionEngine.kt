@@ -151,25 +151,7 @@ object OfferDecisionEngine {
             }
         }
 
-        val unusedOldWhen = when {
-            false -> {
-                val formattedRate = formatBrl(earningsPerKm)
-                val formattedTarget = formatBrl(target)
-                TrafficLightDecision.RED to "VERMELHO • NÃO COMPENSA: $formattedRate/km abaixo da meta mínima de $formattedTarget/km$unidentifiedSuffix$routeSourceTag"
-            }
-            earningsPerKm < comfortMargin && !customerPreferred -> {
-                val formattedRate = formatBrl(earningsPerKm)
-                TrafficLightDecision.YELLOW to "AMARELO • ATENÇÃO: Margem apertada ($formattedRate/km) considerando retorno ao Centro (${route.leg3CustomerToCenterKm} km)$unidentifiedSuffix$routeSourceTag"
-            }
-            isLongReturn -> {
-                TrafficLightDecision.YELLOW to "AMARELO • ATENÇÃO: Retorno longo até o Centro (${route.leg3CustomerToCenterKm} km)$unidentifiedSuffix$routeSourceTag"
-            }
-            else -> {
-                val formattedRate = formatBrl(earningsPerKm)
-                val bonusTag = if (customerPreferred) " • Bairro preferido ($customerLabel)" else ""
-                TrafficLightDecision.GREEN to "VERDE • COMPENSA: $formattedRate/km acima da meta$bonusTag$unidentifiedSuffix$routeSourceTag"
-            }
-        }
+        
 
         return AnalyzedOfferEntity(
             timestamp = System.currentTimeMillis(),
