@@ -101,7 +101,17 @@ class MobLetsAccessibilityService : AccessibilityService() {
         val prefs = app.container.preferencesRepository
 
         // Capture node text synchronously before node snapshots go stale
-        val extractedText = collectWindowTextSafely()
+        val rawCaptured = collectWindowTextSafely()
+        val extractedText = if (rawCaptured.contains("Detalhes da entrega", ignoreCase = true) || rawCaptured.contains("1º parada", ignoreCase = true) || rawCaptured.contains("1ª parada", ignoreCase = true)) {
+            rawCaptured.lines().filterNot { l ->
+                val low = l.trim().lowercase()
+                low.contains("disp. (") || low.contains("pend. (") || low.contains("prog. (") ||
+                low.startsWith("coleta ") || low.startsWith("destino ") || low.contains("delivery flex") ||
+                low == "mapa" || low == "livre" || low == "entregas" || low == "desconectar"
+            }.joinToString("\n")
+        } else {
+            rawCaptured
+        }
         val fingerprint = normalizeScreenFingerprint(pkg, extractedText)
         val sameVisualScreen = fingerprint.isNotBlank() && fingerprint == lastScreenFingerprint
 
@@ -441,7 +451,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
     }
 
     companion object {
-        private const val EVENT_SCAN_INTERVAL_MS = 80L
+        private const val EVENT_SCAN_INTERVAL_MS = 100L
         private const val OCR_SCAN_INTERVAL_MS = 3500L
         private const val OFFER_LEAVE_CONFIRMATION_MS = 2500L
     }

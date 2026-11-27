@@ -670,7 +670,7 @@ class RouteCalculator(
             }
         }
 
-        if (!Geocoder.isPresent()) return null
+        return null // 100% offline instantaneo
         val query = if (rawAddress.contains("montes claros", ignoreCase = true)) {
             rawAddress
         } else {
