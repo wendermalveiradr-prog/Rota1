@@ -140,13 +140,13 @@ object OfferDecisionEngine {
                 TrafficLightDecision.RED to "NÃO COMPENSA • BAIRRO EVITADO ($customerLabel) + KM abaixo da meta ($formattedRate/km)"
             }
             isBairroEvitado -> {
-                TrafficLightDecision.RED to "NÃO COMPENSA • BAIRRO EVITADO ($customerLabel) mesmo com $formattedRate/km"
+                TrafficLightDecision.RED to "NÃO COMPENSA • BAIRRO EVITADO ($customerLabel) • $formattedRate/km • Lucro ${formatBrl(netProfit)}"
             }
             isKmRuim -> {
-                TrafficLightDecision.RED to "NÃO COMPENSA • KM abaixo de $formattedTarget/km (Bairro $customerLabel OK)"
+                TrafficLightDecision.RED to "NÃO COMPENSA • $formattedRate/km (Meta $formattedTarget) • Lucro ${formatBrl(netProfit)} • Bairro $customerLabel OK"
             }
             else -> {
-                TrafficLightDecision.GREEN to "COMPENSA • Bairro $customerLabel OK + $formattedRate/km"
+                TrafficLightDecision.GREEN to "COMPENSA • $formattedRate/km • Lucro ${formatBrl(netProfit)} • Bairro $customerLabel OK"
             }
         }
 
