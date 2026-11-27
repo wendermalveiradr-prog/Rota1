@@ -172,7 +172,7 @@ class FloatingOverlayService : Service() {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
         val initialRuntime = ServiceRuntimeBus.state.value
-        isExpanded = true
+        isExpanded = initialRuntime.isForegroundTargetApp
         lastHandledMinimizeNonce = initialRuntime.minimizeNonce
         lastHandledExpandNonce = initialRuntime.expandNonce
 
@@ -298,7 +298,7 @@ class FloatingOverlayService : Service() {
             setPadding(dp(10), dp(4), dp(10), dp(4))
             setOnClickListener {
                 applyExpandedState(expanded = !isExpanded, updateWindowLayout = true)
-            }
+        }
         }
 
         val closeBtn = TextView(this).apply {
@@ -629,7 +629,7 @@ class FloatingOverlayService : Service() {
             offer.earningsPerKm
         )
         decisionTitleView.setTextColor(dotColor)
-        rateMetricView.text = offer.decisionReason.removePrefix("VERDE • ").removePrefix("VERMELHO • ")
+        rateMetricView.text = String.format(ptBr, "%s • Meta R$ %.2f/km", emojiLabel, currentSettings.minTargetPerKm)
 
         val storeText = offer.storeName.ifBlank { "Não informada" }
         val pickupNb = if (MontesClarosGeoCatalog.isUnidentified(offer.pickupNeighborhood)) {

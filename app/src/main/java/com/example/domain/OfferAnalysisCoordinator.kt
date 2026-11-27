@@ -212,8 +212,8 @@ class OfferAnalysisCoordinator(
                 // STAGE 2: Non-blocking background refinement via fresh GPS + Geocoder + OSRM
                 if (false) scheduleBackgroundOsrmRefinement(
                     runId = runId,
-                    savedOfferId = insertedId,
-                    originalTimestamp = savedInstantOffer.timestamp,
+                    savedOfferId = 0L,
+                    originalTimestamp = instantEvaluated.timestamp,
                     priceBrl = priceBrl,
                     storeName = storeName,
                     storeConfidence = storeConfidence,

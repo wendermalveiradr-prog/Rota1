@@ -208,7 +208,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
             try {
                 val settings = prefs.getSettingsOnce()
                 if (settings.strictMobLetsPackageFilter && !isMobLetsPackage) return@launch
-                if (false && settings.ocrFallbackEnabled) {
+                if (settings.ocrFallbackEnabled && (isMobLetsPackage || extractedText.length < 35)) {
                     lastOcrScanMs = System.currentTimeMillis()
                     triggerOcrFallbackScan(
                         detectedPackage = pkg,
@@ -454,12 +454,6 @@ class MobLetsAccessibilityService : AccessibilityService() {
         activeEventJob?.cancel()
         isOcrInFlight.set(false)
         serviceScope.cancel()
-        ServiceRuntimeBus.setAccessibilityConnected(false)
-    }
-
-    companion object {
-        private const val EVENT_SCAN_INTERVAL_MS = 600L
-        private const val OCR_SCAN_INTERVAL_MS = 3500L
-        private const val OFFER_LEAVE_CONFIRMATION_MS = 2500L
+         const val OFFER_LEAVE_CONFIRMATION_MS = 2500L
     }
 }

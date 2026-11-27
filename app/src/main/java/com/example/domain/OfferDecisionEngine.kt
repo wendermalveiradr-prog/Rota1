@@ -176,7 +176,7 @@ object OfferDecisionEngine {
             targetPerKm = target,
             decision = decision.name,
             decisionReason = reason,
-            neighborhoodAlert = neighborhoodAlert,
+        }    neighborhoodAlert = neighborhoodAlert,
             routeSource = route.routeSource,
             usedGpsStart = usedGpsStart
         )
