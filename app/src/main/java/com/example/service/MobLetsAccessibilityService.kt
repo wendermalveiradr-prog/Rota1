@@ -419,6 +419,8 @@ class MobLetsAccessibilityService : AccessibilityService() {
         val cls = node.className?.toString().orEmpty()
         if (cls.contains("MapView", ignoreCase = true) || cls.contains("WebView", ignoreCase = true) || cls.contains("GLSurfaceView", ignoreCase = true)) return builder.toString()
         val cls = node.className?.toString().orEmpty()
+        if (cls.contains("MapView", ignoreCase = true) || cls.contains("WebView", ignoreCase = true) || cls.contains("GLSurfaceView", ignoreCase = true)) return builder.toString()
+        val cls = node.className?.toString().orEmpty()
         if (cls.contains("MapView", ignoreCase = true) || cls.contains("WebView", ignoreCase = true) || cls.contains("GLSurfaceView", ignoreCase = true)) {
             return builder.toString()
         }
