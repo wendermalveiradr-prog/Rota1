@@ -3,6 +3,8 @@ package com.example.service
 import android.accessibilityservice.AccessibilityService
 import android.graphics.Bitmap
 import android.os.Build
+import android.os.SystemClock
+import android.util.Log
 import android.view.Display
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -76,6 +78,8 @@ class MobLetsAccessibilityService : AccessibilityService() {
         if (pkg.isBlank() || pkg == packageName || pkg in transientSystemPackages) return
         if (event?.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) return
 
+        val nowCheck = System.currentTimeMillis()
+        if (pkg != packageName && nowCheck - lastEventScanMs < 500L) return
         val isMobLetsPackage = isMobLetsPackageName(pkg)
 
         // Track foreground app changes before ignoring our own app so opening Rota Inteligente IA
@@ -97,12 +101,15 @@ class MobLetsAccessibilityService : AccessibilityService() {
         if (now - lastEventScanMs < EVENT_SCAN_INTERVAL_MS) return
         lastEventScanMs = now
 
+        val eventStartedAt = SystemClock.elapsedRealtime()
         val app = application as? RotaInteligenteApp ?: return
         val coordinator = app.container.analysisCoordinator
         val prefs = app.container.preferencesRepository
 
         // Capture node text synchronously before node snapshots go stale
+        val captureStartedAt = SystemClock.elapsedRealtime()
         val extractedText = collectWindowTextSafely()
+        val captureMs = SystemClock.elapsedRealtime() - captureStartedAt
         val fingerprint = normalizeScreenFingerprint(pkg, extractedText)
         val sameVisualScreen = fingerprint.isNotBlank() && fingerprint == lastScreenFingerprint
 
@@ -119,12 +126,16 @@ class MobLetsAccessibilityService : AccessibilityService() {
             }
         }
 
+        val parseStartedAt = SystemClock.elapsedRealtime()
         val parsedFromAccessibility = OfferParser.parse(
             rawText = extractedText,
             requireDeliveryKeywords = !isMobLetsPackage
         )
 
+        val parseMs = SystemClock.elapsedRealtime() - parseStartedAt
         if (parsedFromAccessibility != null) {
+            val eventToDispatchMs = SystemClock.elapsedRealtime() - eventStartedAt
+            Log.d("RotaPerf", "captura_tela=${captureMs}ms interpretacao=${parseMs}ms evento_ate_despacho=${eventToDispatchMs}ms texto=${extractedText.length}chars")
             lastOfferScreenVisibleMs = now
             lastNonOfferScreenStartMs = 0L
             lastScreenFingerprint = fingerprint
@@ -444,7 +455,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
     }
 
     companion object {
-        private const val EVENT_SCAN_INTERVAL_MS = 80L
+        private const val EVENT_SCAN_INTERVAL_MS = 500L
         private const val OCR_SCAN_INTERVAL_MS = 3500L
         private const val OFFER_LEAVE_CONFIRMATION_MS = 2500L
     }

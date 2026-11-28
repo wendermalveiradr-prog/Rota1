@@ -50,6 +50,7 @@ class RotaInteligenteApp : Application() {
         container = AppContainer(this)
         appScope.launch {
             container.offerRepository.ensureSeededNeighborhoods()
+            container.analysisCoordinator.warmUpCaches()
             container.offerRepository.pruneOldOffers()
             container.geoCacheStore.pruneExpired()
         }

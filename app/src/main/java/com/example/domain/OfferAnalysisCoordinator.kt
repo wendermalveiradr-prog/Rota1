@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.SystemClock
+import android.util.Log
 import android.provider.Settings
 import com.example.data.OfferRepository
 import com.example.data.local.AnalyzedOfferEntity
@@ -51,6 +53,19 @@ class OfferAnalysisCoordinator(
     @Volatile
     private var cachedRules: List<NeighborhoodRuleEntity>? = null
 
+    private val cacheMutex = Mutex()
+
+    suspend fun warmUpCaches() {
+        cacheMutex.withLock {
+            if (cachedSettings == null) {
+                cachedSettings = preferencesRepository.getSettingsOnce()
+            }
+            if (cachedRules == null) {
+                cachedRules = offerRepository.getNeighborhoodRulesOnce()
+            }
+        }
+    }
+
     suspend fun analyzeStructuredOffer(
         priceBrl: Double,
         pickupAddress: String,
@@ -83,9 +98,7 @@ class OfferAnalysisCoordinator(
             activeRefinementJob?.cancel(CancellationException("Nova oferta recebida"))
 
             val nextRunId = ServiceRuntimeBus.nextRunId()
-            ServiceRuntimeBus.beginRun(
-                runId = nextRunId,
-                message = "Calculando semáforo instantâneo (Montes Claros)...",
+            // beginRun omitido para evitar recomposicao dupla...",
                 detectedPackage = detectedPackage
             )
 
@@ -156,12 +169,12 @@ class OfferAnalysisCoordinator(
         detectedPackage: String
     ): OfferAnalysisOutcome {
         return try {
-            val settings = cachedSettings ?: preferencesRepository.getSettingsOnce().also {
-                cachedSettings = it
-            }
-            val rules = cachedRules ?: offerRepository.getNeighborhoodRulesOnce().also {
-                cachedRules = it
-            }
+            val analysisStartedAt = SystemClock.elapsedRealtime()
+            val cacheStartedAt = SystemClock.elapsedRealtime()
+            warmUpCaches()
+            val cacheMs = SystemClock.elapsedRealtime() - cacheStartedAt
+            val settings = checkNotNull(cachedSettings)
+            val rules = checkNotNull(cachedRules)
 
             if (!ServiceRuntimeBus.isRunCurrent(runId)) {
                 throw CancellationException("Execução substituída por oferta mais recente")
@@ -173,6 +186,7 @@ class OfferAnalysisCoordinator(
 
             // STAGE 1: Instant < 300ms offline calculation (screen numbers + MOC offline catalog)
             val instantLocation = locationHelper.getCachedLocationOrCenterInstant()
+            val routeStartedAt = SystemClock.elapsedRealtime()
             val instantRoute = routeCalculator.calculateInstantOfflineRoute(
                 currentLocation = instantLocation.point,
                 pickupAddress = pickupAddress,
@@ -182,7 +196,9 @@ class OfferAnalysisCoordinator(
                 countReturn = rawSnippet.contains("com retorno", ignoreCase = true)
             )
 
+            val instantRouteMs = SystemClock.elapsedRealtime() - routeStartedAt
             if (instantRoute != null) {
+                val evaluationStartedAt = SystemClock.elapsedRealtime()
                 val instantEvaluated = OfferDecisionEngine.evaluateOffer(
                     source = source,
                     rawSnippet = effectiveSnippet,
@@ -201,8 +217,17 @@ class OfferAnalysisCoordinator(
                     settings = settings
                 )
 
+                val evaluationMs = SystemClock.elapsedRealtime() - evaluationStartedAt
                 // Exibe resultado instantaneo (< 5ms) na janela flutuante e grava no historico sem travar
+                val publishStartedAt = SystemClock.elapsedRealtime()
                 ServiceRuntimeBus.completeRun(runId, instantEvaluated, detectedPackage)
+                val publishMs = SystemClock.elapsedRealtime() - publishStartedAt
+                val totalMs = SystemClock.elapsedRealtime() - analysisStartedAt
+                Log.d(
+                    "RotaPerf",
+                    "cache=${cacheMs}ms rota=${instantRouteMs}ms avaliacao=${evaluationMs}ms " +
+                        "publicacao=${publishMs}ms total=${totalMs}ms"
+                )
                 coordinatorScope.launch {
                     try {
                         offerRepository.saveAnalyzedOffer(instantEvaluated)
@@ -234,8 +259,6 @@ class OfferAnalysisCoordinator(
             }
 
             // Fallback path when neither catalog nor screen km provided instant offline coordinates:
-            val freshSettings = preferencesRepository.getSettingsOnce().also { cachedSettings = it }
-            val freshRules = offerRepository.getNeighborhoodRulesOnce().also { cachedRules = it }
             val driverLocation = locationHelper.getCurrentLocationOrFallback()
 
             if (!ServiceRuntimeBus.isRunCurrent(runId)) {
@@ -282,8 +305,8 @@ class OfferAnalysisCoordinator(
                         customerNeighborhoodHint = customerNeighborhoodHint,
                         route = routeResolution.route,
                         usedGpsStart = driverLocation.usedGps,
-                        neighborhoodRules = freshRules,
-                        settings = freshSettings
+                        neighborhoodRules = rules,
+                        settings = settings
                     )
 
                     val insertedId = offerRepository.saveAnalyzedOffer(evaluated)
