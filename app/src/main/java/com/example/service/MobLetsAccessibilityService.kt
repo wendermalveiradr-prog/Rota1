@@ -76,8 +76,6 @@ class MobLetsAccessibilityService : AccessibilityService() {
         if (pkg.isBlank() || pkg == packageName || pkg in transientSystemPackages) return
         if (event?.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) return
 
-        val nowCheck = System.currentTimeMillis()
-        if (pkg != packageName && event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && nowCheck - lastEventScanMs < 200L) return
         val isMobLetsPackage = isMobLetsPackageName(pkg)
 
         // Track foreground app changes before ignoring our own app so opening Rota Inteligente IA
@@ -104,14 +102,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
         val prefs = app.container.preferencesRepository
 
         // Capture node text synchronously before node snapshots go stale
-        val rawCap = collectWindowTextSafely()
-        val extractedText = if (rawCap.contains("Detalhes da entrega", ignoreCase = true) || rawCap.contains("1º parada", ignoreCase = true) || rawCap.contains("1ª parada", ignoreCase = true)) {
-            rawCap.lines().filterNot { l ->
-                val low = l.trim().lowercase()
-                low.contains("disp. (") || low.contains("pend. (") || low.contains("prog. (") ||
-                low == "mapa" || low == "livre" || low == "entregas" || low == "desconectar"
-            }.joinToString("\n")
-        } else rawCap
+        val extractedText = collectWindowTextSafely()
         val fingerprint = normalizeScreenFingerprint(pkg, extractedText)
         val sameVisualScreen = fingerprint.isNotBlank() && fingerprint == lastScreenFingerprint
 
@@ -385,14 +376,14 @@ class MobLetsAccessibilityService : AccessibilityService() {
         return "${Math.round(priceBrl * 100.0)}|$normStore|$normP|$normC"
     }
 
-                private fun collectWindowTextSafely(): String {
+    private fun collectWindowTextSafely(): String {
         val root = try {
             rootInActiveWindow
         } catch (_: Exception) {
             null
         } ?: return ""
 
-        val rawFull = try {
+        return try {
             collectNodeText(root)
         } finally {
             try {
@@ -400,13 +391,6 @@ class MobLetsAccessibilityService : AccessibilityService() {
                 root.recycle()
             } catch (_: Exception) {
             }
-        }
-
-        val idxDetalhes = rawFull.indexOf("Detalhes da entrega", ignoreCase = true)
-        return if (idxDetalhes >= 0) {
-            rawFull.substring(idxDetalhes)
-        } else {
-            rawFull
         }
     }
 
@@ -416,22 +400,15 @@ class MobLetsAccessibilityService : AccessibilityService() {
         builder: StringBuilder = StringBuilder()
     ): String {
         if (node == null || depth > 20 || builder.length > 2200) return builder.toString()
-        val cls = node.className?.toString().orEmpty()
-        if (cls.contains("MapView", ignoreCase = true) || cls.contains("WebView", ignoreCase = true) || cls.contains("GLSurfaceView", ignoreCase = true)) return builder.toString()
-        val cls = node.className?.toString().orEmpty()
-        if (cls.contains("MapView", ignoreCase = true) || cls.contains("WebView", ignoreCase = true) || cls.contains("GLSurfaceView", ignoreCase = true)) return builder.toString()
-        val cls = node.className?.toString().orEmpty()
-        if (cls.contains("MapView", ignoreCase = true) || cls.contains("WebView", ignoreCase = true) || cls.contains("GLSurfaceView", ignoreCase = true)) {
-            return builder.toString()
-        }
+        val nodeClass = node.className?.toString().orEmpty()
+        if (nodeClass.contains("MapView", ignoreCase = true) || nodeClass.contains("WebView", ignoreCase = true) || nodeClass.contains("GLSurfaceView", ignoreCase = true)) return builder.toString()
 
         val text = node.text?.toString()?.trim()
         if (!text.isNullOrBlank()) {
             builder.append(text).append('\n')
-            if (text.equals("Aceitar", ignoreCase = true)) return builder.toString()
         } else {
             val desc = node.contentDescription?.toString()?.trim()
-            if (!desc.isNullOrBlank() && !desc.contains("Mapa do Google", ignoreCase = true) && !desc.contains("Marcador do mapa", ignoreCase = true)) {
+            if (!desc.isNullOrBlank()) {
                 builder.append(desc).append('\n')
             }
         }
@@ -467,7 +444,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
     }
 
     companion object {
-        private const val EVENT_SCAN_INTERVAL_MS = 200L
+        private const val EVENT_SCAN_INTERVAL_MS = 80L
         private const val OCR_SCAN_INTERVAL_MS = 3500L
         private const val OFFER_LEAVE_CONFIRMATION_MS = 2500L
     }
