@@ -233,7 +233,9 @@ fun RotaInteligenteRoot(
                             onToggleOcrFallback = viewModel::setOcrFallbackEnabled,
                             onToggleOsrmRouting = viewModel::setUseOsrmRoadRouting,
                             onToggleAutoShowOverlay = viewModel::setAutoShowOverlayOnOffer,
-                            onToggleStrictMobLets = viewModel::setStrictMobLetsPackageFilter
+                            onToggleStrictMobLets = viewModel::setStrictMobLetsPackageFilter,
+                            onToggleFilter99 = viewModel::setFilter99Enabled,
+                            onToggleFilterUber = viewModel::setFilterUberEnabled
                         )
                     }
                 }

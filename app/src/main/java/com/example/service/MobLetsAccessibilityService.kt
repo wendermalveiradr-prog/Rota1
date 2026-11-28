@@ -33,6 +33,8 @@ class MobLetsAccessibilityService : AccessibilityService() {
 
     @Volatile
     private var lastEventScanMs = 0L
+    private var cachedSettingsMem: com.example.data.preferences.DriverSettings? = null
+    private var cachedSettingsAtMs = 0L
 
     @Volatile
     private var lastOcrScanMs = 0L
@@ -79,7 +81,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
         if (event?.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) return
 
         val nowCheck = System.currentTimeMillis()
-        if (pkg != packageName && nowCheck - lastEventScanMs < 500L) return
+        if (pkg != packageName && false) return
         val isMobLetsPackage = isMobLetsPackageName(pkg)
 
         // Track foreground app changes before ignoring our own app so opening Rota Inteligente IA
@@ -89,15 +91,17 @@ class MobLetsAccessibilityService : AccessibilityService() {
             return
         }
 
-        if (pkg == "com.android.settings") {
-            // pkg, isTargetApp = false)
+        if (pkg == packageName || pkg == "com.android.settings" || pkg.startsWith("com.android.systemui")) {
             return
+        }
+        if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED && lastActiveOfferSignature.isNotBlank()) {
+            val nowFast = System.currentTimeMillis()
+            if (nowFast - lastOfferScreenVisibleMs < 450L) return
         }
 
         // pkg, isTargetApp = isMobLetsPackage)
 
-        if (activeEventJob?.isActive == true) return
-        val now = System.currentTimeMillis()
+                val now = System.currentTimeMillis()
         if (now - lastEventScanMs < EVENT_SCAN_INTERVAL_MS) return
         lastEventScanMs = now
 
@@ -109,6 +113,9 @@ class MobLetsAccessibilityService : AccessibilityService() {
         // Capture node text synchronously before node snapshots go stale
         val captureStartedAt = SystemClock.elapsedRealtime()
         val extractedText = collectWindowTextSafely()
+        if (extractedText.length < 15) return
+        val lowerQuick = extractedText.lowercase()
+        if (!lowerQuick.contains("parada") && !lowerQuick.contains("retirada") && !lowerQuick.contains("aceitar") && !lowerQuick.contains("coleta")) return
         val captureMs = SystemClock.elapsedRealtime() - captureStartedAt
         val fingerprint = normalizeScreenFingerprint(pkg, extractedText)
         val sameVisualScreen = fingerprint.isNotBlank() && fingerprint == lastScreenFingerprint
@@ -152,14 +159,14 @@ class MobLetsAccessibilityService : AccessibilityService() {
                 return
             }
 
-            // New distinct offer detected -> cancel only pending accessibility parsing job and start instant analysis
+            // New distinct offer detected -> expande o card automaticamente
+            ServiceRuntimeBus.onForegroundAppChanged(pkg, isTargetApp = true)
             lastActiveOfferSignature = signature
-            // Manual apenas
             activeEventJob?.cancel()
             activeEventJob = serviceScope.launch {
                 try {
-                    val settings = prefs.getSettingsOnce()
-                    if (settings.strictMobLetsPackageFilter && !isMobLetsPackage) {
+                    val settings = cachedSettingsMem?.takeIf { System.currentTimeMillis() - cachedSettingsAtMs < 5000L } ?: prefs.getSettingsOnce().also { cachedSettingsMem = it; cachedSettingsAtMs = System.currentTimeMillis() }
+                    if (!isPackageAllowedBySettings(pkg, settings)) {
                         return@launch
                     }
                     coordinator.analyzeStructuredOffer(
@@ -190,15 +197,12 @@ class MobLetsAccessibilityService : AccessibilityService() {
             return
         }
 
-        // Screen has non-offer content: reset lastActiveOfferSignature only if user left the offer screen stably
-        if (extractedText.length >= 40) {
-            if (lastNonOfferScreenStartMs == 0L) {
-                lastNonOfferScreenStartMs = now
-            } else if (lastActiveOfferSignature.isNotBlank() &&
-                (now - lastNonOfferScreenStartMs) >= OFFER_LEAVE_CONFIRMATION_MS
-            ) {
-                lastActiveOfferSignature = ""
-            }
+        // Saiu da tela de oferta (voltou ao mapa Livre) -> limpa cache e minimiza na bolinha ROTA IA
+        if (lastActiveOfferSignature.isNotBlank()) {
+            lastActiveOfferSignature = ""
+            RecentOfferPriceCache.clear()
+            ServiceRuntimeBus.clearCurrentOfferCache()
+            ServiceRuntimeBus.onForegroundAppChanged(pkg, isTargetApp = false)
         }
 
         if (sameVisualScreen) return
@@ -208,8 +212,8 @@ class MobLetsAccessibilityService : AccessibilityService() {
 
         serviceScope.launch {
             try {
-                val settings = prefs.getSettingsOnce()
-                if (settings.strictMobLetsPackageFilter && !isMobLetsPackage) return@launch
+                val settings = cachedSettingsMem?.takeIf { System.currentTimeMillis() - cachedSettingsAtMs < 5000L } ?: prefs.getSettingsOnce().also { cachedSettingsMem = it; cachedSettingsAtMs = System.currentTimeMillis() }
+                if (!isPackageAllowedBySettings(pkg, settings)) return@launch
                 if (false && settings.ocrFallbackEnabled) {
                     lastOcrScanMs = System.currentTimeMillis()
                     triggerOcrFallbackScan(
@@ -225,21 +229,30 @@ class MobLetsAccessibilityService : AccessibilityService() {
     }
 
     private fun isMobLetsPackageName(pkg: String): Boolean {
-        val rootText = try {
-            val root = rootInActiveWindow
-            val text = collectNodeText(root)
-            try { root?.recycle() } catch (_: Exception) {}
-            text
-        } catch (_: Exception) {
-            ""
+        val l = pkg.lowercase()
+        return l == "br.com.letsexpress.taxi.taximachine" || l.contains("letsexpress") || l.contains("taximachine") || l.contains("moblets")
+    }
+
+    private fun is99PackageName(pkg: String): Boolean {
+        val l = pkg.lowercase()
+        return l == "com.app99.driver" || l == "com.taxis99" || l.contains("app99") || l.contains("taxis99") || l.contains("didi")
+    }
+
+    private fun isUberPackageName(pkg: String): Boolean {
+        val l = pkg.lowercase()
+        return l == "com.ubercab.driver" || l == "com.ubercab" || l.contains("ubercab")
+    }
+
+    private fun isPackageAllowedBySettings(pkg: String, settings: com.example.data.preferences.DriverSettings): Boolean {
+        val isMob = isMobLetsPackageName(pkg)
+        val is99 = is99PackageName(pkg)
+        val isUber = isUberPackageName(pkg)
+        if (!settings.strictMobLetsPackageFilter && !settings.filter99Enabled && !settings.filterUberEnabled) {
+            return true
         }
-        return pkg.contains("moblets", ignoreCase = true) ||
-            pkg.contains("mob.lets", ignoreCase = true) ||
-            pkg.contains("mob_lets", ignoreCase = true) ||
-            pkg.contains("delivery", ignoreCase = true) ||
-            rootText.contains("mob", ignoreCase = true) ||
-            rootText.contains("corrida", ignoreCase = true) ||
-            rootText.contains("entrega", ignoreCase = true)
+        return (settings.strictMobLetsPackageFilter && isMob) ||
+            (settings.filter99Enabled && is99) ||
+            (settings.filterUberEnabled && isUber)
     }
 
     private fun triggerOcrFallbackScan(detectedPackage: String, requireKeywords: Boolean) {
@@ -411,6 +424,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
         builder: StringBuilder = StringBuilder()
     ): String {
         if (node == null || depth > 20 || builder.length > 2200) return builder.toString()
+        if (!node.isVisibleToUser) return builder.toString()
         val nodeClass = node.className?.toString().orEmpty()
         if (nodeClass.contains("MapView", ignoreCase = true) || nodeClass.contains("WebView", ignoreCase = true) || nodeClass.contains("GLSurfaceView", ignoreCase = true)) return builder.toString()
 
@@ -455,8 +469,8 @@ class MobLetsAccessibilityService : AccessibilityService() {
     }
 
     companion object {
-        private const val EVENT_SCAN_INTERVAL_MS = 500L
-        private const val OCR_SCAN_INTERVAL_MS = 3500L
+        private const val EVENT_SCAN_INTERVAL_MS = 60L
+        private const val OCR_SCAN_INTERVAL_MS = 2000L
         private const val OFFER_LEAVE_CONFIRMATION_MS = 2500L
     }
 }

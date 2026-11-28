@@ -279,6 +279,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun setFilter99Enabled(enabled: Boolean) {
+        viewModelScope.launch {
+            container.preferencesRepository.setFilter99Enabled(enabled)
+        }
+    }
+
+    fun setFilterUberEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            container.preferencesRepository.setFilterUberEnabled(enabled)
+        }
+    }
+
     private fun readPermissions(): PermissionSnapshot {
         val overlayGranted = Settings.canDrawOverlays(app)
         val locationGranted = ContextCompat.checkSelfPermission(

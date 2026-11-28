@@ -16,7 +16,9 @@ data class DriverSettings(
     val ocrFallbackEnabled: Boolean = true,
     val useOsrmRoadRouting: Boolean = true,
     val autoShowOverlayOnOffer: Boolean = true,
-    val strictMobLetsPackageFilter: Boolean = false,
+    val strictMobLetsPackageFilter: Boolean = true,
+    val filter99Enabled: Boolean = false,
+    val filterUberEnabled: Boolean = false,
     val cautionReturnThresholdKm: Double = 6.5,
     val countReturnEnabled: Boolean = false
 )
@@ -29,6 +31,8 @@ class DriverPreferencesRepository(private val context: Context) {
         val USE_OSRM_ROAD_ROUTING = booleanPreferencesKey("use_osrm_road_routing")
         val AUTO_SHOW_OVERLAY = booleanPreferencesKey("auto_show_overlay")
         val STRICT_MOBLETS_FILTER = booleanPreferencesKey("strict_moblets_filter")
+        val FILTER_99_ENABLED = booleanPreferencesKey("filter_99_enabled")
+        val FILTER_UBER_ENABLED = booleanPreferencesKey("filter_uber_enabled")
         val CAUTION_RETURN_KM = doublePreferencesKey("caution_return_km")
         val COUNT_RETURN_ENABLED = booleanPreferencesKey("count_return_enabled")
     }
@@ -39,7 +43,9 @@ class DriverPreferencesRepository(private val context: Context) {
             ocrFallbackEnabled = prefs[Keys.OCR_FALLBACK_ENABLED] ?: true,
             useOsrmRoadRouting = prefs[Keys.USE_OSRM_ROAD_ROUTING] ?: true,
             autoShowOverlayOnOffer = prefs[Keys.AUTO_SHOW_OVERLAY] ?: true,
-            strictMobLetsPackageFilter = prefs[Keys.STRICT_MOBLETS_FILTER] ?: false,
+            strictMobLetsPackageFilter = prefs[Keys.STRICT_MOBLETS_FILTER] ?: true,
+            filter99Enabled = prefs[Keys.FILTER_99_ENABLED] ?: false,
+            filterUberEnabled = prefs[Keys.FILTER_UBER_ENABLED] ?: false,
             cautionReturnThresholdKm = prefs[Keys.CAUTION_RETURN_KM] ?: 6.5,
             countReturnEnabled = prefs[Keys.COUNT_RETURN_ENABLED] ?: false
         )
@@ -65,6 +71,14 @@ class DriverPreferencesRepository(private val context: Context) {
 
     suspend fun setStrictMobLetsPackageFilter(enabled: Boolean) {
         context.dataStore.edit { it[Keys.STRICT_MOBLETS_FILTER] = enabled }
+    }
+
+    suspend fun setFilter99Enabled(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.FILTER_99_ENABLED] = enabled }
+    }
+
+    suspend fun setFilterUberEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.FILTER_UBER_ENABLED] = enabled }
     }
 
     suspend fun setCautionReturnThresholdKm(km: Double) {

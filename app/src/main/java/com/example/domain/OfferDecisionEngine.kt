@@ -91,8 +91,8 @@ object OfferDecisionEngine {
 
         val pickupRule = pickupMatch.rule
         val customerRule = customerMatch.rule
-        val pickupLabel = pickupMatch.name
-        val customerLabel = customerMatch.name
+        val pickupLabel = if (pickupMatch.name.equals(OfferParser.UNIDENTIFIED_LABEL, true) && pickupNeighborhoodHint.isNotBlank()) pickupNeighborhoodHint.trim() else pickupMatch.name
+        val customerLabel = if (customerMatch.name.equals(OfferParser.UNIDENTIFIED_LABEL, true) && customerNeighborhoodHint.isNotBlank()) customerNeighborhoodHint.trim() else customerMatch.name
 
         val pickupAvoided = pickupRule?.status == NeighborhoodStatus.AVOIDED.name
         val customerAvoided = customerRule?.status == NeighborhoodStatus.AVOIDED.name

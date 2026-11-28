@@ -167,7 +167,11 @@ object OfferParser {
      * for up to 2 minutes via [RecentOfferPriceCache].
      */
     fun extractOfferScreenMetrics(rawText: String): CachedOfferScreenMetrics? {
-        val cleanLines = rawText.lines().map { it.replace(Regex("\\s+"), " ").trim() }.filter { it.isNotBlank() }
+        val sanitizedRaw = rawText
+            .replace(Regex("(?i)\\s*-\\s*DELIVERY FLEX.*"), "")
+            .replace(Regex("(?i)\\s*-\\s*Mapa do Google.*"), "")
+            .replace(Regex("(?i)\\s*-\\s*Marcador do mapa.*"), "")
+        val cleanLines = sanitizedRaw.lines().map { it.replace(Regex("\\s+"), " ").trim() }.filter { it.isNotBlank() }
         if (cleanLines.isEmpty()) return null
         val joined = cleanLines.joinToString("\n")
         val price = extractPrice(joined) ?: return null
@@ -199,7 +203,7 @@ object OfferParser {
         fallbackStoreName: String? = null,
         nowMs: Long = System.currentTimeMillis()
     ): ParsedOfferDraft? {
-        val cleanLines = rawText
+        val cleanLines = rawText.replace(Regex("(?i)\\s*-\\s*(?:DELIVERY FLEX|MOTO DELIVERY|Mapa do Google|Marcador do mapa).*"), "")
             .lines()
             .map { it.replace(Regex("\\s+"), " ").trim() }
             .filter { it.isNotBlank() && it.length >= 2 }
@@ -224,16 +228,23 @@ object OfferParser {
         val usedCachedPrice = directPrice == null
 
         val lowerJoined = joined.lowercase()
+        if (lowerJoined.contains("cnh expira") || lowerJoined.contains("suporte") || lowerJoined.contains("atualizar seus dados")) return null
         val hasDeliveryContext = storeMarkerRegexes.any { it.containsMatchIn(lowerJoined) } ||
             inlinePickupMarkerRegexes.any { it.containsMatchIn(lowerJoined) } ||
             inlineCustomerMarkerRegexes.any { it.containsMatchIn(lowerJoined) } ||
             isDetailsScreen ||
-            lowerJoined.contains("mob lets") ||
-            lowerJoined.contains("moblets") ||
+            lowerJoined.contains("recusar") ||
+            lowerJoined.contains("1º parada") ||
             lowerJoined.contains("aceitar") ||
             lowerJoined.contains("nova oferta") ||
             lowerJoined.contains("corrida")
 
+        val hasRealOfferButtons = (lowerJoined.contains("aceitar") && lowerJoined.contains("recusar")) ||
+            lowerJoined.contains("1 parada") || lowerJoined.contains("1º parada") || lowerJoined.contains("1ª parada") ||
+            Regex("(?i)\\bos\\s*\\d{5,}").containsMatchIn(joined)
+        if (!hasRealOfferButtons) {
+            return null
+        }
         if (requireDeliveryKeywords && !hasDeliveryContext) {
             return null
         }
@@ -290,7 +301,7 @@ object OfferParser {
                 val endIdx = if (returnIdx > deliveryStopIdx) returnIdx else cleanLines.size
                 cleanLines.subList(deliveryStopIdx + 1, endIdx)
             }
-            touchCustomerIdx >= 0 -> cleanLines.drop(touchCustomerIdx)
+            touchCustomerIdx >= 0 -> cleanLines.drop(touchCustomerIdx).takeWhile { !it.trim().lowercase().startsWith("retorno") }
             else -> cleanLines.drop(kotlin.math.min(cleanLines.size, 4))
         }
 
@@ -312,7 +323,7 @@ object OfferParser {
                 continue
             }
 
-            if (lowerLine.contains("bateria") || lowerLine.contains("agendada") || lowerLine.contains("disponivel com") || lowerLine.contains("disponível com") || isUiScreenHeaderLine(line) || isUiFooterCtaLine(line) || isDistanceOrMetaNoise(line) || looksLikePrice(line)) {
+            if (lowerLine.contains("disp. (") || lowerLine.contains("pend. (") || lowerLine.contains("prog. (") || lowerLine == "mapa" || lowerLine == "entrega" || lowerLine == "retorno" || lowerLine == "moto delivery" || lowerLine.contains("bateria") || lowerLine.contains("agendada") || lowerLine.contains("disponivel com") || lowerLine.contains("disponível com") || isUiScreenHeaderLine(line) || isUiFooterCtaLine(line) || isDistanceOrMetaNoise(line) || looksLikePrice(line)) {
                 continue
             }
 
@@ -325,6 +336,11 @@ object OfferParser {
                 }
             }
 
+            val beforeMin = Regex("""^(.+?)\s*-\s*\d{1,3}\s*min\b""", RegexOption.IGNORE_CASE).find(rawLine)?.groupValues?.get(1)?.trim().orEmpty()
+            if (beforeMin.isNotBlank() && detectedStoreName.isBlank() && isPlausibleStoreName(beforeMin) && !looksLikeAddressLine(beforeMin)) {
+                detectedStoreName = beforeMin
+                storeFromExplicitMarker = true
+            }
             var cleanedTouchLine = line.replace(Regex("""\s*-?\s*\d{1,3}\s*min\b\s*""", RegexOption.IGNORE_CASE), " ").replace(Regex("\\s{2,}"), " ").trim()
             val (storePart, addressPart) = splitStoreAndAddress(cleanedTouchLine)
             if (storePart.isNotBlank() && detectedStoreName.isBlank() && isPlausibleStoreName(storePart)) {
@@ -443,7 +459,7 @@ object OfferParser {
             pickupAddressConfidence = pickupAddressConfidence,
             pickupNeighborhoodHint = finalPickupNeighborhoodHint,
             pickupNeighborhoodConfidence = pickupNeighborhoodConfidence,
-            customerAddress = finalCustomer,
+            customerAddress = finalCustomer.replace(Regex("(?i)\\s*-\\s*(?:MOTO\\s+DELIVERY|DELIVERY\\s+FLEX|FLASH\\s+[A-Z0-9 ]+|Mapa\\s+do\\s+Google|Marcador\\s+do\\s+mapa).*"), "").trim(),
             customerAddressConfidence = customerAddressConfidence,
             customerNeighborhoodHint = finalCustomerNeighborhoodHint,
             customerNeighborhoodConfidence = customerNeighborhoodConfidence,

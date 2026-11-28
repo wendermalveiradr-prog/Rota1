@@ -44,7 +44,7 @@ object ServiceRuntimeBus {
     fun isTargetDeliveryPackage(pkg: String, screenText: String = ""): Boolean {
         val p = pkg.lowercase()
         val t = screenText.lowercase()
-        return p.contains("moblets") ||
+        return p.contains("letsexpress") || p.contains("taximachine") || p.contains("app99") || p.contains("taxis99") || p.contains("ubercab") || p.contains("moblets") ||
             p.contains("mob.lets") ||
             p.contains("mob_lets") ||
             p.contains("mobilete") ||
@@ -103,6 +103,18 @@ object ServiceRuntimeBus {
                 isForegroundTargetApp = isTargetApp,
                 minimizeNonce = if (!isTargetApp) current.minimizeNonce + 1L else current.minimizeNonce,
                 expandNonce = if (isTargetApp) current.expandNonce + 1L else current.expandNonce
+            )
+        }
+    }
+
+    fun clearCurrentOfferCache() {
+        _state.update {
+            if (it.latestOffer == null && !it.isAnalyzing && it.lastAnalysisError == null) it
+            else it.copy(
+                isAnalyzing = false,
+                latestOffer = null,
+                lastAnalysisError = null,
+                lastStatusMessage = "Aguardando nova oferta..."
             )
         }
     }

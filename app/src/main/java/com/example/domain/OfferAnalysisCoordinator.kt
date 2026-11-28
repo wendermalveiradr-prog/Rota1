@@ -40,7 +40,7 @@ class OfferAnalysisCoordinator(
     private val routeCalculator: RouteCalculator,
     private val ocrProcessor: OcrFallbackProcessor
 ) {
-    private val coordinatorScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val coordinatorScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val dispatchMutex = Mutex()
     private var activeRunId: Long = 0L
     private var activeSignature: String? = null
@@ -99,8 +99,6 @@ class OfferAnalysisCoordinator(
 
             val nextRunId = ServiceRuntimeBus.nextRunId()
             // beginRun omitido para evitar recomposicao dupla...",
-                detectedPackage = detectedPackage
-            )
 
             val newDeferred = coordinatorScope.async {
                 executeOfferAnalysis(
@@ -193,7 +191,7 @@ class OfferAnalysisCoordinator(
                 customerAddress = customerAddress,
                 pickupDistanceHintKm = pickupDistanceHintKm,
                 screenTotalKmHint = screenTotalKmHint,
-                countReturn = rawSnippet.contains("com retorno", ignoreCase = true)
+                countReturn = settings.countReturnEnabled || rawSnippet.contains("retorno", ignoreCase = true)
             )
 
             val instantRouteMs = SystemClock.elapsedRealtime() - routeStartedAt
@@ -214,7 +212,7 @@ class OfferAnalysisCoordinator(
                     route = instantRoute,
                     usedGpsStart = instantLocation.usedGps,
                     neighborhoodRules = rules,
-                    settings = settings
+                    settings = settings.copy(countReturnEnabled = settings.countReturnEnabled || rawSnippet.contains("retorno", ignoreCase = true))
                 )
 
                 val evaluationMs = SystemClock.elapsedRealtime() - evaluationStartedAt
@@ -271,7 +269,7 @@ class OfferAnalysisCoordinator(
                     pickupAddress = pickupAddress,
                     customerAddress = customerAddress,
                     useOsrmRoadRouting = false,
-                    countReturn = rawSnippet.contains("com retorno", ignoreCase = true)
+                    countReturn = settings.countReturnEnabled || rawSnippet.contains("retorno", ignoreCase = true)
                 )
             ) {
                 is RouteResolutionResult.UnresolvedAddress -> {
@@ -306,7 +304,7 @@ class OfferAnalysisCoordinator(
                         route = routeResolution.route,
                         usedGpsStart = driverLocation.usedGps,
                         neighborhoodRules = rules,
-                        settings = settings
+                        settings = settings.copy(countReturnEnabled = settings.countReturnEnabled || rawSnippet.contains("retorno", ignoreCase = true))
                     )
 
                     val insertedId = offerRepository.saveAnalyzedOffer(evaluated)
@@ -361,7 +359,7 @@ class OfferAnalysisCoordinator(
                     pickupAddress = pickupAddress,
                     customerAddress = customerAddress,
                     useOsrmRoadRouting = false,
-                    countReturn = rawSnippet.contains("com retorno", ignoreCase = true)
+                    countReturn = freshSettings.countReturnEnabled || rawSnippet.contains("retorno", ignoreCase = true)
                 )
 
                 if (!ServiceRuntimeBus.isRunCurrent(runId)) return@launch

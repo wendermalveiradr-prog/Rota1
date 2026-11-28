@@ -42,6 +42,8 @@ fun SettingsScreen(
     onToggleOsrmRouting: (Boolean) -> Unit,
     onToggleAutoShowOverlay: (Boolean) -> Unit,
     onToggleStrictMobLets: (Boolean) -> Unit,
+    onToggleFilter99: (Boolean) -> Unit = {},
+    onToggleFilterUber: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val rotaColors = LocalRotaColors.current
@@ -168,11 +170,27 @@ fun SettingsScreen(
                         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                         SettingToggleRow(
-                            title = "Filtrar Estritamente Pacotes Mob Lets",
-                            subtitle = "Quando desligado, analisa telas de oferta compatíveis em qualquer app de entrega.",
+                            title = "Filtrar App Mob Lets",
+                            subtitle = "Analisa ofertas de entrega na tela do aplicativo Mob Lets.",
                             checked = settings.strictMobLetsPackageFilter,
                             onCheckedChange = onToggleStrictMobLets,
                             testTag = "toggle_strict_package"
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                        SettingToggleRow(
+                            title = "Filtrar App 99 (99Moto / Entregas)",
+                            subtitle = "Analisa ofertas de corrida/entrega na tela do aplicativo 99.",
+                            checked = settings.filter99Enabled,
+                            onCheckedChange = onToggleFilter99,
+                            testTag = "toggle_filter_99"
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                        SettingToggleRow(
+                            title = "Filtrar App Uber (Uber Flash / Driver)",
+                            subtitle = "Analisa ofertas de entrega/viagem na tela do aplicativo Uber.",
+                            checked = settings.filterUberEnabled,
+                            onCheckedChange = onToggleFilterUber,
+                            testTag = "toggle_filter_uber"
                         )
                     }
                 }

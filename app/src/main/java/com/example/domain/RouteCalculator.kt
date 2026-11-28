@@ -178,13 +178,17 @@ class RouteCalculator(
             3.50
         }
 
-        val l2 = if (hasScreenKm) {
+        val l2 = if (hasScreenKm && countReturn) {
+            round2(screenTotalKmHint!! / 2.0)
+        } else if (hasScreenKm) {
             round2(screenTotalKmHint!!)
         } else {
             catalogL2
         }
 
-        val l3 = if (countReturn) {
+        val l3 = if (hasScreenKm && countReturn) {
+            round2(screenTotalKmHint!! - l2)
+        } else if (countReturn) {
             val destPoint = customerPoint ?: centerPoint
             val returnTarget = pickupPoint ?: centerPoint
             round2((haversineKm(destPoint, returnTarget) * urbanFactor).coerceAtLeast(0.50))

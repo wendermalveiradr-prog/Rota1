@@ -96,7 +96,7 @@ class FloatingOverlayService : Service() {
                 if (isStopping) return@collectLatest
                 currentSettings = settings
                 if (::contarVoltaBtn.isInitialized) {
-                    contarVoltaBtn.text = if (settings.countReturnEnabled) "🔄 Volta: ON" else "🔄 Volta: OFF"
+                    contarVoltaBtn.text = if ((settings.countReturnEnabled || (ServiceRuntimeBus.state.value.latestOffer?.leg3CustomerToCenterKm ?: 0.0) > 0.01)) "🔄 Volta: ON" else "🔄 Volta: OFF"
                 }
                 if (::metaButton.isInitialized) {
                     metaButton.text = String.format(Locale("pt", "BR"), "Meta: R$ %.2f", settings.minTargetPerKm)
@@ -650,6 +650,10 @@ class FloatingOverlayService : Service() {
             appendLine("Loja: $storeText")
             appendLine("Retirada ($pickupNb): $pickupAddrClean")
             append("Entrega ($customerNb): $customerAddrClean")
+            if (offer.leg3CustomerToCenterKm > 0.01) {
+                appendLine()
+                append("Retorno ($pickupNb): $pickupAddrClean")
+            }
         }
 
         routeBreakdownView.text = String.format(
