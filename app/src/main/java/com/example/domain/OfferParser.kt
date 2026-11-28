@@ -296,7 +296,7 @@ object OfferParser {
 
         // Process pickup & store lines (above 1º parada)
         for (rawLine in pickupLines) {
-            val line = stripParenthesizedDistance(rawLine)
+            var line = stripParenthesizedDistance(rawLine)
             if (line.isBlank()) continue
             val lowerLine = line.lowercase()
 
@@ -325,7 +325,7 @@ object OfferParser {
                 }
             }
 
-            val cleanedTouchLine = line.replace(Regex("""\s*-?\s*\d{1,3}\s*min\b\s*""", RegexOption.IGNORE_CASE), " ").replace(Regex("\\s{2,}"), " ").trim()
+            var cleanedTouchLine = line.replace(Regex("""\s*-?\s*\d{1,3}\s*min\b\s*""", RegexOption.IGNORE_CASE), " ").replace(Regex("\\s{2,}"), " ").trim()
             val (storePart, addressPart) = splitStoreAndAddress(cleanedTouchLine)
             if (storePart.isNotBlank() && detectedStoreName.isBlank() && isPlausibleStoreName(storePart)) {
                 detectedStoreName = storePart
@@ -347,7 +347,7 @@ object OfferParser {
 
         // Process customer delivery lines (below 1º parada)
         for (rawLine in customerLines) {
-            val line = stripParenthesizedDistance(rawLine)
+            var line = stripParenthesizedDistance(rawLine)
             if (line.isBlank()) continue
             val lowerLine = line.lowercase()
 
@@ -355,7 +355,7 @@ object OfferParser {
                 continue
             }
 
-            val cleanCustLine = line.replace(Regex("""^\d{1,3}\s*min\b\s*""", RegexOption.IGNORE_CASE), "").trim()
+            var cleanCustLine = line.replace(Regex("""^\d{1,3}\s*min\b\s*""", RegexOption.IGNORE_CASE), "").trim()
             if (cleanCustLine.isNotBlank() && (looksLikeAddressLine(cleanCustLine) || hasMeaningfulAddressTokens(cleanCustLine))) {
                 customerParts.add(cleanCustLine)
                 customerFromExplicitSection = true
