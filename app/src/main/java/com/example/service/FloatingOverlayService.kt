@@ -101,6 +101,17 @@ class FloatingOverlayService : Service() {
                 if (::metaButton.isInitialized) {
                     metaButton.text = String.format(Locale("pt", "BR"), "Meta: R$ %.2f", settings.minTargetPerKm)
                 }
+                if (::detailsContainer.isInitialized) {
+                    detailsContainer.findViewWithTag<TextView>("km_limit_toggle_btn")?.apply {
+                        if (settings.maxDistanceFunnelEnabled) {
+                            text = String.format(Locale("pt", "BR"), "Km Máx: %.1f", settings.maxDistanceLimitKm)
+                            (background as? GradientDrawable)?.setColor(Color.parseColor("#065F46"))
+                        } else {
+                            text = "Km Máx: OFF"
+                            (background as? GradientDrawable)?.setColor(Color.parseColor("#334155"))
+                        }
+                    }
+                }
                 renderState(ServiceRuntimeBus.state.value)
             }
         }
@@ -239,7 +250,7 @@ class FloatingOverlayService : Service() {
             setTextColor(Color.WHITE)
             textSize = 11.5f
             typeface = Typeface.DEFAULT_BOLD
-            maxLines = 1
+            maxLines = 2
         }
 
         minimizedPillContainer.addView(minimizedDotView)
@@ -274,7 +285,7 @@ class FloatingOverlayService : Service() {
             setTextColor(Color.WHITE)
             textSize = 12f
             typeface = Typeface.DEFAULT_BOLD
-            maxLines = 1
+            maxLines = 2
             ellipsize = TextUtils.TruncateAt.END
         }
 
@@ -282,7 +293,7 @@ class FloatingOverlayService : Service() {
             text = "Aguardando oferta..."
             setTextColor(Color.parseColor("#94A3B8"))
             textSize = 11f
-            maxLines = 1
+            maxLines = 2
             ellipsize = TextUtils.TruncateAt.END
         }
 
@@ -294,7 +305,7 @@ class FloatingOverlayService : Service() {
             setTextColor(Color.parseColor("#CBD5E1"))
             textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
-            maxLines = 1
+            maxLines = 2
             setPadding(dp(10), dp(4), dp(10), dp(4))
             setOnClickListener {
                 applyExpandedState(expanded = !isExpanded, updateWindowLayout = true)
@@ -306,7 +317,7 @@ class FloatingOverlayService : Service() {
             setTextColor(Color.parseColor("#F87171"))
             textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
-            maxLines = 1
+            maxLines = 2
             setPadding(dp(8), dp(4), dp(4), dp(4))
             setOnClickListener { stopOverlayNow() }
         }
@@ -333,7 +344,7 @@ class FloatingOverlayService : Service() {
             text = "Rota: Atual → Loja → Cliente"
             setTextColor(Color.parseColor("#38BDF8"))
             textSize = 11f
-            maxLines = 1
+            maxLines = 2
             setPadding(0, dp(4), 0, 0)
         }
 
@@ -369,7 +380,7 @@ class FloatingOverlayService : Service() {
             setTextColor(Color.parseColor("#BAE6FD"))
             textSize = 9.5f
             typeface = Typeface.DEFAULT_BOLD
-            maxLines = 1
+            maxLines = 2
             setPadding(dp(5), dp(3), dp(5), dp(3))
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#0C4A6E"))
@@ -389,7 +400,7 @@ class FloatingOverlayService : Service() {
             setTextColor(Color.parseColor("#34D399"))
             textSize = 9.5f
             typeface = Typeface.DEFAULT_BOLD
-            maxLines = 1
+            maxLines = 2
             setPadding(dp(5), dp(3), dp(5), dp(3))
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#064E3B"))
@@ -411,6 +422,58 @@ class FloatingOverlayService : Service() {
         }
 
         detailsContainer.addView(controlsRow)
+
+        val kmControlsRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(4), 0, 0)
+        }
+        val kmLimitToggleBtn = TextView(this).apply {
+            tag = "km_limit_toggle_btn"
+            text = if (currentSettings.maxDistanceFunnelEnabled) String.format(Locale("pt", "BR"), "Km Máx: %.1f", currentSettings.maxDistanceLimitKm) else "Km Máx: OFF"
+            setTextColor(Color.WHITE)
+            textSize = 9.5f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding(dp(6), dp(3), dp(6), dp(3))
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor(if (currentSettings.maxDistanceFunnelEnabled) "#065F46" else "#334155"))
+                cornerRadius = dp(8).toFloat()
+            }
+            setOnClickListener {
+                val nextState = !currentSettings.maxDistanceFunnelEnabled
+                serviceScope.launch(Dispatchers.IO) {
+                    prefsRepo.setMaxDistanceFunnelEnabled(nextState)
+                    reanalyzeLatestOffer()
+                }
+            }
+        }
+        kmControlsRow.addView(kmLimitToggleBtn)
+
+        listOf(3.0, 4.5, 6.0).forEach { kmPreset ->
+            val btn = TextView(this).apply {
+                text = String.format(Locale("pt", "BR"), "%.1fkm", kmPreset)
+                setTextColor(Color.parseColor("#E2E8F0"))
+                textSize = 9.5f
+                setPadding(dp(6), dp(3), dp(6), dp(3))
+                background = GradientDrawable().apply {
+                    setColor(Color.parseColor("#1E293B"))
+                    cornerRadius = dp(8).toFloat()
+                }
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { marginStart = dp(4) }
+                setOnClickListener {
+                    serviceScope.launch(Dispatchers.IO) {
+                        prefsRepo.setMaxDistanceFunnelEnabled(true)
+                        prefsRepo.setMaxDistanceLimitKm(kmPreset)
+                        reanalyzeLatestOffer()
+                    }
+                }
+            }
+            kmControlsRow.addView(btn)
+        }
+        detailsContainer.addView(kmControlsRow)
         detailsContainer.addView(alertBannerView)
 
         footerRow = LinearLayout(this).apply {
@@ -424,7 +487,7 @@ class FloatingOverlayService : Service() {
             setTextColor(Color.parseColor("#BAE6FD"))
             textSize = 11f
             typeface = Typeface.DEFAULT_BOLD
-            maxLines = 1
+            maxLines = 2
             setPadding(dp(10), dp(6), dp(10), dp(6))
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#0C4A6E"))
@@ -438,7 +501,7 @@ class FloatingOverlayService : Service() {
             setTextColor(Color.WHITE)
             textSize = 11f
             typeface = Typeface.DEFAULT_BOLD
-            maxLines = 1
+            maxLines = 2
             setPadding(dp(10), dp(6), dp(10), dp(6))
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#1E293B"))
@@ -621,12 +684,20 @@ class FloatingOverlayService : Service() {
         minimizedLabelView.text = "ROTA IA"
 
         val ptBr = Locale("pt", "BR")
+        val kmFlag = if (currentSettings.maxDistanceFunnelEnabled) {
+            if (offer.totalKm > currentSettings.maxDistanceLimitKm) "❌Km" else "✅Km"
+        } else ""
+        val metaFlag = if (offer.earningsPerKm >= currentSettings.minTargetPerKm) "✅Meta" else "❌Meta"
+        val bairroFlag = if (offer.neighborhoodAlert?.contains("evitado", true) == true) "❌Bairro" else "✅Bairro"
+        val flagsSummary = listOf(kmFlag, metaFlag, bairroFlag).filter { it.isNotBlank() }.joinToString(" ")
+
         decisionTitleView.text = String.format(
             ptBr,
-            "R$ %.2f • %.2f km • R$ %.2f/km",
+            "R$ %.2f • %.2f km • R$ %.2f/km  [%s]",
             offer.offerPriceBrl,
             offer.totalKm,
-            offer.earningsPerKm
+            offer.earningsPerKm,
+            flagsSummary
         )
         decisionTitleView.setTextColor(dotColor)
         rateMetricView.text = offer.decisionReason.removePrefix("VERDE • ").removePrefix("VERMELHO • ")
@@ -664,9 +735,13 @@ class FloatingOverlayService : Service() {
             offer.leg3CustomerToCenterKm
         )
 
-        if (!offer.neighborhoodAlert.isNullOrBlank()) {
+        val kmExceededMsg = if (currentSettings.maxDistanceFunnelEnabled && offer.totalKm > currentSettings.maxDistanceLimitKm) {
+            String.format(ptBr, "Passou do limite de distância: %.2f km (Máx: %.1f km)", offer.totalKm, currentSettings.maxDistanceLimitKm)
+        } else null
+        val combinedAlert = listOfNotNull(kmExceededMsg, offer.neighborhoodAlert).joinToString(" • ")
+        if (combinedAlert.isNotBlank()) {
             alertBannerView.visibility = View.VISIBLE
-            alertBannerView.text = "⚠ ${offer.neighborhoodAlert}"
+            alertBannerView.text = "⚠ $combinedAlert"
         } else {
             alertBannerView.visibility = View.GONE
         }
@@ -723,7 +798,7 @@ class FloatingOverlayService : Service() {
             setTextColor(Color.WHITE)
             textSize = 9.5f
             typeface = Typeface.DEFAULT_BOLD
-            maxLines = 1
+            maxLines = 2
             setPadding(dp(4), dp(3), dp(4), dp(3))
             background = GradientDrawable().apply {
                 setColor(Color.parseColor("#1E293B"))

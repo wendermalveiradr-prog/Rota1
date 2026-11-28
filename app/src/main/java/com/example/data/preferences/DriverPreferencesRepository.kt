@@ -20,7 +20,9 @@ data class DriverSettings(
     val filter99Enabled: Boolean = false,
     val filterUberEnabled: Boolean = false,
     val cautionReturnThresholdKm: Double = 6.5,
-    val countReturnEnabled: Boolean = false
+    val countReturnEnabled: Boolean = false,
+    val maxDistanceFunnelEnabled: Boolean = false,
+    val maxDistanceLimitKm: Double = 5.0
 )
 
 class DriverPreferencesRepository(private val context: Context) {
@@ -35,6 +37,8 @@ class DriverPreferencesRepository(private val context: Context) {
         val FILTER_UBER_ENABLED = booleanPreferencesKey("filter_uber_enabled")
         val CAUTION_RETURN_KM = doublePreferencesKey("caution_return_km")
         val COUNT_RETURN_ENABLED = booleanPreferencesKey("count_return_enabled")
+        val MAX_DISTANCE_FUNNEL_ENABLED = booleanPreferencesKey("max_distance_funnel_enabled")
+        val MAX_DISTANCE_LIMIT_KM = doublePreferencesKey("max_distance_limit_km")
     }
 
     val settingsFlow: Flow<DriverSettings> = context.dataStore.data.map { prefs ->
@@ -47,7 +51,9 @@ class DriverPreferencesRepository(private val context: Context) {
             filter99Enabled = prefs[Keys.FILTER_99_ENABLED] ?: false,
             filterUberEnabled = prefs[Keys.FILTER_UBER_ENABLED] ?: false,
             cautionReturnThresholdKm = prefs[Keys.CAUTION_RETURN_KM] ?: 6.5,
-            countReturnEnabled = prefs[Keys.COUNT_RETURN_ENABLED] ?: false
+            countReturnEnabled = prefs[Keys.COUNT_RETURN_ENABLED] ?: false,
+            maxDistanceFunnelEnabled = prefs[Keys.MAX_DISTANCE_FUNNEL_ENABLED] ?: false,
+            maxDistanceLimitKm = prefs[Keys.MAX_DISTANCE_LIMIT_KM] ?: 5.0
         )
     }
 
@@ -87,5 +93,13 @@ class DriverPreferencesRepository(private val context: Context) {
 
     suspend fun setCountReturnEnabled(enabled: Boolean) {
         context.dataStore.edit { it[Keys.COUNT_RETURN_ENABLED] = enabled }
+    }
+
+    suspend fun setMaxDistanceFunnelEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.MAX_DISTANCE_FUNNEL_ENABLED] = enabled }
+    }
+
+    suspend fun setMaxDistanceLimitKm(km: Double) {
+        context.dataStore.edit { it[Keys.MAX_DISTANCE_LIMIT_KM] = km.coerceIn(1.5, 20.0) }
     }
 }

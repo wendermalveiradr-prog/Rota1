@@ -234,6 +234,8 @@ fun RotaInteligenteRoot(
                             onToggleOsrmRouting = viewModel::setUseOsrmRoadRouting,
                             onToggleAutoShowOverlay = viewModel::setAutoShowOverlayOnOffer,
                             onToggleStrictMobLets = viewModel::setStrictMobLetsPackageFilter,
+                            onToggleMaxDistanceFunnel = viewModel::setMaxDistanceFunnelEnabled,
+                            onUpdateMaxDistanceLimitKm = viewModel::setMaxDistanceLimitKm,
                             onToggleFilter99 = viewModel::setFilter99Enabled,
                             onToggleFilterUber = viewModel::setFilterUberEnabled
                         )

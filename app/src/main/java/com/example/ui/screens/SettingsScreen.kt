@@ -42,6 +42,8 @@ fun SettingsScreen(
     onToggleOsrmRouting: (Boolean) -> Unit,
     onToggleAutoShowOverlay: (Boolean) -> Unit,
     onToggleStrictMobLets: (Boolean) -> Unit,
+    onToggleMaxDistanceFunnel: (Boolean) -> Unit = {},
+    onUpdateMaxDistanceLimitKm: (Double) -> Unit = {},
     onToggleFilter99: (Boolean) -> Unit = {},
     onToggleFilterUber: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
@@ -119,6 +121,62 @@ fun SettingsScreen(
                                     onClick = { onUpdateTargetPerKm(preset) },
                                     label = { Text(label) }
                                 )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Funil de Limite de Distancia (km)
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        SettingToggleRow(
+                            title = "Limite Máximo de Distância (km)",
+                            subtitle = "Mostra NÃO COMPENSA (vermelho) quando a corrida passar da distância máxima escolhida.",
+                            checked = settings.maxDistanceFunnelEnabled,
+                            onCheckedChange = onToggleMaxDistanceFunnel,
+                            testTag = "toggle_max_distance_funnel"
+                        )
+                        if (settings.maxDistanceFunnelEnabled) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Limite Máximo de Distância",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = String.format(ptBr, "%.1f km", settings.maxDistanceLimitKm),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = rotaColors.green
+                                )
+                            }
+                            Slider(
+                                value = settings.maxDistanceLimitKm.toFloat(),
+                                onValueChange = { raw ->
+                                    val rounded = Math.round(raw * 2.0) / 2.0
+                                    onUpdateMaxDistanceLimitKm(rounded)
+                                },
+                                valueRange = 2.0f..15.0f
+                            )
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                listOf(3.0, 4.5, 6.0, 8.0).forEach { kmPreset ->
+                                    AssistChip(
+                                        onClick = { onUpdateMaxDistanceLimitKm(kmPreset) },
+                                        label = { Text(String.format(ptBr, "%.1f km", kmPreset)) }
+                                    )
+                                }
                             }
                         }
                     }

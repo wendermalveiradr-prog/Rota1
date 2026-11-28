@@ -96,7 +96,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
         }
         if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED && lastActiveOfferSignature.isNotBlank()) {
             val nowFast = System.currentTimeMillis()
-            if (nowFast - lastOfferScreenVisibleMs < 450L) return
+            if (nowFast - lastOfferScreenVisibleMs < 60L) return
         }
 
         // pkg, isTargetApp = isMobLetsPackage)

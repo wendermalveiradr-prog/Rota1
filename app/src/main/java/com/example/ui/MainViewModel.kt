@@ -279,6 +279,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun setMaxDistanceFunnelEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            container.preferencesRepository.setMaxDistanceFunnelEnabled(enabled)
+        }
+    }
+
+    fun setMaxDistanceLimitKm(km: Double) {
+        viewModelScope.launch {
+            container.preferencesRepository.setMaxDistanceLimitKm(km)
+        }
+    }
+
     fun setFilter99Enabled(enabled: Boolean) {
         viewModelScope.launch {
             container.preferencesRepository.setFilter99Enabled(enabled)

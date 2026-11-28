@@ -130,26 +130,44 @@ object OfferDecisionEngine {
         val comfortMargin = target * 1.18
         val isLongReturn = route.leg3CustomerToCenterKm > settings.cautionReturnThresholdKm
 
+        val checkedDistanceKm = route.totalKm
+        val exceedsFunnelLimit = settings.maxDistanceFunnelEnabled &&
+            checkedDistanceKm > settings.maxDistanceLimitKm
+
+        val formattedRateVal = formatBrl(earningsPerKm)
+        val formattedTargetVal = formatBrl(target)
+        val limitStr = String.format(Locale("pt", "BR"), "%.1f km", settings.maxDistanceLimitKm)
+        val distStr = String.format(Locale("pt", "BR"), "%.2f km", checkedDistanceKm)
+
+        val kmStatus = when {
+            !settings.maxDistanceFunnelEnabled -> "Km: $distStr"
+            exceedsFunnelLimit -> "Km: $distStr (Máx $limitStr) ❌"
+            else -> "Km: $distStr ✅"
+        }
+        val metaStatus = if (earningsPerKm >= target) {
+            "Meta: $formattedRateVal/km ✅"
+        } else {
+            "Meta: $formattedRateVal/km (< $formattedTargetVal) ❌"
+        }
+        val bairroStatus = when {
+            customerAvoided || pickupAvoided -> "Bairro: $customerLabel (Evitado) ❌"
+            customerPreferred -> "Bairro: $customerLabel (Preferido) ✅"
+            else -> "Bairro: $customerLabel ✅"
+        }
+        val summaryLine = "$kmStatus • $metaStatus • $bairroStatus"
+
         val (decision, reason) = when {
-            customerAvoided || pickupAvoided -> {
-                TrafficLightDecision.RED to "NÃO COMPENSA • BAIRRO EVITADO ($customerLabel)"
-            }
-            earningsPerKm < target -> {
-                val formattedRate = formatBrl(earningsPerKm)
-                val formattedTarget = formatBrl(target)
-                TrafficLightDecision.RED to "NÃO COMPENSA (Meta $formattedTarget) • Bairro $customerLabel OK"
+            customerAvoided || pickupAvoided || exceedsFunnelLimit || earningsPerKm < target -> {
+                TrafficLightDecision.RED to "NÃO COMPENSA • $summaryLine"
             }
             earningsPerKm < comfortMargin && !customerPreferred -> {
-                val formattedRate = formatBrl(earningsPerKm)
-                TrafficLightDecision.YELLOW to "AMARELO • ATENÇÃO: Margem apertada ($formattedRate/km) considerando retorno ao Centro (${route.leg3CustomerToCenterKm} km)$unidentifiedSuffix$routeSourceTag"
+                TrafficLightDecision.YELLOW to "ATENÇÃO (Margem apertada) • $summaryLine"
             }
             isLongReturn -> {
-                TrafficLightDecision.YELLOW to "AMARELO • ATENÇÃO: Retorno longo até o Centro (${route.leg3CustomerToCenterKm} km)$unidentifiedSuffix$routeSourceTag"
+                TrafficLightDecision.YELLOW to "ATENÇÃO (Retorno ${route.leg3CustomerToCenterKm} km) • $summaryLine"
             }
             else -> {
-                val formattedRate = formatBrl(earningsPerKm)
-                val bonusTag = if (customerPreferred) " • Bairro preferido ($customerLabel)" else ""
-                TrafficLightDecision.GREEN to "COMPENSA • Bairro $customerLabel OK"
+                TrafficLightDecision.GREEN to "COMPENSA • $summaryLine"
             }
         }
 
