@@ -385,7 +385,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
         return "${Math.round(priceBrl * 100.0)}|$normStore|$normP|$normC"
     }
 
-            private fun collectWindowTextSafely(): String {
+                private fun collectWindowTextSafely(): String {
         val root = try {
             rootInActiveWindow
         } catch (_: Exception) {
