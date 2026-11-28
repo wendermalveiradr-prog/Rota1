@@ -385,7 +385,7 @@ class MobLetsAccessibilityService : AccessibilityService() {
         return "${Math.round(priceBrl * 100.0)}|$normStore|$normP|$normC"
     }
 
-        private fun collectWindowTextSafely(): String {
+            private fun collectWindowTextSafely(): String {
         val root = try {
             rootInActiveWindow
         } catch (_: Exception) {
@@ -404,9 +404,9 @@ class MobLetsAccessibilityService : AccessibilityService() {
 
         val idxDetalhes = rawFull.indexOf("Detalhes da entrega", ignoreCase = true)
         return if (idxDetalhes >= 0) {
-            raw.substring(idxDetalhes)
+            rawFull.substring(idxDetalhes)
         } else {
-            raw
+            rawFull
         }
     }
 
